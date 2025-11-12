@@ -131,19 +131,20 @@ class _MyHomePageState extends State<MyHomePage> {
         Move move = legalMoves[index]!;
 
         // Check promotion before updating UI
-        if (isPromotionAttempt(move.piece, move.startingSquare, move.endingSquare)) {
-          Piece? choice = await showPromotionDialog(context, move.piece.color);
+        if (isPromotionAttempt(movePiece(move), startingSquare(move), endingSquare(move))) {
+          Piece? choice = await showPromotionDialog(context, movePiece(move).color);
           if (choice == null) return; // user cancelled
+          print("Entered");
           widget.state.safeMakeMove(
-            Move(
-              move.piece,
-              move.startingSquare,
-              move.endingSquare,
-              move.capture,
-              isEnPassant: move.isEnPassant,
-              isCastle: move.isCastle,
-              promotionPiece: choice,
-            ),
+            makeMoveInt(
+              from: startingSquare(move), 
+              to: endingSquare(move), 
+              movingPiece: movePiece(move), 
+              color: moveColor(move),
+              isCapture: isCapture(move),
+              isEP: isEnPassant(move),
+              promotionPiece: choice
+            )
           );
         } else {
           widget.state.safeMakeMove(move);
@@ -186,7 +187,7 @@ class _MyHomePageState extends State<MyHomePage> {
       List<Move> possibleMoves = widget.state.generatePsuedoLegalMoves(startIndex);
 
       for(Move m in possibleMoves){
-        if(m.startingSquare == startIndex && m.endingSquare == endIndex){
+        if(startingSquare(m) == startIndex && endingSquare(m) == endIndex){
           move = m;
         }
       }
@@ -252,9 +253,9 @@ class _MyHomePageState extends State<MyHomePage> {
     
 
     for(final Move move in legalMoves){
-      this.legalMoves[move.endingSquare] = move;
+      this.legalMoves[endingSquare(move)] = move;
       HighlightType highlightType = state.isTurnColor(color) ? HighlightType.selected : HighlightType.premove;
-      markers[move.endingSquare] = move.capture ? Marker.piece(highlightType) : Marker.empty(highlightType);
+      markers[endingSquare(move)] = isCapture(move) ? Marker.piece(highlightType) : Marker.empty(highlightType);
     }
 
     return markers;
@@ -267,15 +268,15 @@ class _MyHomePageState extends State<MyHomePage> {
 
     if(widget.state.whiteToMove && widget.state.premoveBlack.isNotEmpty){
         for(Move move in widget.state.premoveBlack){
-          highlights[move.startingSquare] = HighlightType.premove;
-          highlights[move.endingSquare] = HighlightType.premove;
+          highlights[startingSquare(move)] = HighlightType.premove;
+          highlights[endingSquare(move)] = HighlightType.premove;
         }
       }
 
       if(!widget.state.whiteToMove && widget.state.premoveWhite.isNotEmpty){
        for(Move move in widget.state.premoveWhite){
-          highlights[move.startingSquare] = HighlightType.premove;
-          highlights[move.endingSquare] = HighlightType.premove;
+          highlights[startingSquare(move)] = HighlightType.premove;
+          highlights[endingSquare(move)] = HighlightType.premove;
         }
       }
 

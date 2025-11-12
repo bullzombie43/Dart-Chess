@@ -2,8 +2,6 @@ import 'dart:collection';
 import 'dart:io';
 import 'dart:math';
 
-import 'package:fixnum/fixnum.dart';
-
 typedef Bitboard = int;
 
 bool isOnBoard(int square) => square >= 0 && square < 64;
@@ -18,30 +16,31 @@ String indexToSquare(int index) {
   return "$fileChar$rankChar";
 }
 String moveNotation(Move move) {
-  String from = indexToSquare(move.startingSquare);
-  String to = indexToSquare(move.endingSquare);
-  String promo = move.promotionPiece != null ? '=${move.promotionPiece!.charValue}' : '';
+  String from = indexToSquare(startingSquare(move));
+  String to = indexToSquare(endingSquare(move));
+  String promo = isPromo(move) ? '=${movePromotionPiece(move)!.charValue}' : '';
   return '$from$to$promo';
 }
 
 
 enum Piece {
-  whitePawn("P", PieceColor.WHITE, "wP.svg"),
-  whiteKnight("N", PieceColor.WHITE, "wN.svg"),
-  whiteBishop("B", PieceColor.WHITE, "wB.svg"),
-  whiteRook("R", PieceColor.WHITE, "wR.svg"),
-  whiteQueen("Q", PieceColor.WHITE, "wQ.svg"),
-  whiteKing("K", PieceColor.WHITE, "wK.svg"),
-  blackPawn("p", PieceColor.BLACK, "bP.svg"),
-  blackKnight("n", PieceColor.BLACK, "bN.svg"),
-  blackBishop("b", PieceColor.BLACK, "bB.svg"),
-  blackRook("r", PieceColor.BLACK, "bR.svg"),
-  blackQueen("q", PieceColor.BLACK, "bQ.svg"),
-  blackKing("k", PieceColor.BLACK, "bK.svg");
+  whitePawn("P", PieceColor.WHITE, "wP.svg", 1),
+  whiteKnight("N", PieceColor.WHITE, "wN.svg", 2),
+  whiteBishop("B", PieceColor.WHITE, "wB.svg", 3),
+  whiteRook("R", PieceColor.WHITE, "wR.svg", 4),
+  whiteQueen("Q", PieceColor.WHITE, "wQ.svg",5 ),
+  whiteKing("K", PieceColor.WHITE, "wK.svg", 6),
+  blackPawn("p", PieceColor.BLACK, "bP.svg", 1),
+  blackKnight("n", PieceColor.BLACK, "bN.svg", 2),
+  blackBishop("b", PieceColor.BLACK, "bB.svg", 3),
+  blackRook("r", PieceColor.BLACK, "bR.svg", 4),
+  blackQueen("q", PieceColor.BLACK, "bQ.svg", 5),
+  blackKing("k", PieceColor.BLACK, "bK.svg", 6);
 
   final String charValue;
   final PieceColor color;
   final String asset;
+  final int pieceInt;
   
   bool get isKing => this == Piece.blackKing || this == Piece.whiteKing;
   bool get isRook => this == Piece.blackRook || this == Piece.whiteRook;
@@ -68,7 +67,7 @@ enum Piece {
     }
   }
 
-  const Piece(this.charValue, this.color, this.asset);
+  const Piece(this.charValue, this.color, this.asset, this.pieceInt);
 }  
 
 class GameState {
@@ -387,7 +386,7 @@ Bitboard _computePawnAttack(int square, PieceColor color) {
   }
 
   void safeMakeMove(Move move){
-    if(!isTurnColor(move.piece.color)){
+    if(!isTurnColor(movePiece(move).color)){
       setPreMove(move);
       return;
     } else {
@@ -416,10 +415,10 @@ Bitboard _computePawnAttack(int square, PieceColor color) {
   }
 
   void makeMove(Move move){
-    Bitboard bitboard = positions[move.piece]!;
+    Bitboard bitboard = positions[movePiece(move)]!;
 
     //Check there is a piece at starting spot
-    Bitboard startMask = 1 << move.startingSquare;
+    Bitboard startMask = 1 << startingSquare(move);
     bool hasPiece = (bitboard & startMask) != 0;
 
     if(!hasPiece){
@@ -429,33 +428,33 @@ Bitboard _computePawnAttack(int square, PieceColor color) {
     moveHistory.add(
       MoveState(
         move: move,
-        capturedPiece: getPieceAt(move.endingSquare),
+        capturedPiece: getPieceAt(endingSquare(move)),
         enPassantSquare: enPassantSquare,
         whiteCanEnPassant: whiteCanEnPassant,
         whiteCanCastleKingside: whiteCanCastleKingside,
         whiteCanCastleQueenside: whiteCanCastleQueenside,
         blackCanCastleKingside: blackCanCastleKingside,
         blackCanCastleQueenside: blackCanCastleQueenside,
-        wasPromotion: move.promotionPiece != null
+        wasPromotion: isPromo(move)
       ),
     );
 
     //print("MAKING MOVE: Saving old EP square: $enPassantSquare");
 
-    if(move.isEnPassant && move.capture) {
-      int capturedPawnSquare = (move.piece == Piece.whitePawn)
-        ? move.endingSquare - 8
-        : move.endingSquare + 8;
+    if(isEnPassant(move) && isCapture(move)) {
+      int capturedPawnSquare = (movePiece(move) == Piece.whitePawn)
+        ? endingSquare(move) - 8
+        : endingSquare(move) + 8;
       removeCapturedPiece(capturedPawnSquare);
-    } else if(move.capture){
-      removeCapturedPiece(move.endingSquare);
+    } else if(isCapture(move)){
+      removeCapturedPiece(endingSquare(move));
     }
 
-    if (move.piece == Piece.whitePawn && move.startingSquare ~/ 8 == 1 && move.endingSquare ~/ 8 == 3) {
-      enPassantSquare = move.startingSquare + 8; // square behind the pawn
+    if (movePiece(move) == Piece.whitePawn && startingSquare(move) ~/ 8 == 1 && endingSquare(move) ~/ 8 == 3) {
+      enPassantSquare = startingSquare(move) + 8; // square behind the pawn
       whiteCanEnPassant = false;
-    } else if (move.piece == Piece.blackPawn && move.startingSquare ~/ 8 == 6 && move.endingSquare ~/ 8 == 4) {
-      enPassantSquare = move.startingSquare - 8;
+    } else if (movePiece(move) == Piece.blackPawn && startingSquare(move) ~/ 8 == 6 && endingSquare(move) ~/ 8 == 4) {
+      enPassantSquare = startingSquare(move) - 8;
       whiteCanEnPassant = true;
     } else {
       enPassantSquare = null;
@@ -463,20 +462,20 @@ Bitboard _computePawnAttack(int square, PieceColor color) {
     }
 
     //Castling Flah Check
-    if(move.piece.isRook){
-      if(move.piece.color == PieceColor.WHITE && move.startingSquare == 0){
+    if(movePiece(move).isRook){
+      if(movePiece(move).color == PieceColor.WHITE && startingSquare(move) == 0){
         whiteCanCastleQueenside = false;
-      } else if(move.piece.color == PieceColor.WHITE && move.startingSquare == 7){
+      } else if(movePiece(move).color == PieceColor.WHITE && startingSquare(move) == 7){
         whiteCanCastleKingside = false;
-      } else if(move.piece.color == PieceColor.BLACK && move.startingSquare == 56){
+      } else if(movePiece(move).color == PieceColor.BLACK && startingSquare(move) == 56){
         blackCanCastleQueenside = false;
-      } else if(move.piece.color == PieceColor.WHITE && move.startingSquare == 63){
+      } else if(movePiece(move).color == PieceColor.WHITE && startingSquare(move) == 63){
         blackCanCastleKingside = false;
       }
     }
 
-    if(move.piece.isKing){
-      if(move.piece.color == PieceColor.WHITE){
+    if(movePiece(move).isKing){
+      if(movePiece(move).color == PieceColor.WHITE){
         whiteCanCastleKingside = false;
         whiteCanCastleQueenside = false;
       } else {
@@ -485,28 +484,28 @@ Bitboard _computePawnAttack(int square, PieceColor color) {
       }
     }
 
-    if (move.isCastle) {
+    if (isCastle(move)) {
       castleMove(move);
     } 
 
     Bitboard newBitboard = bitboard & (~startMask);
 
-    Bitboard endMask = 1 << move.endingSquare;
+    Bitboard endMask = 1 << endingSquare(move);
 
     // --- Handle promotion ---
-    if (move.promotionPiece != null) {
+    if (isPromo(move)) {
       // Remove pawn from its bitboard (already done in newBitboard)
-      positions[move.piece] = newBitboard; // update pawn board
+      positions[movePiece(move)] = newBitboard; // update pawn board
 
       // Add the promoted piece to its bitboard
-      Bitboard promoBitboard = positions[move.promotionPiece] ?? 0;
-      positions[move.promotionPiece!] = promoBitboard | endMask;
+      Bitboard promoBitboard = positions[movePromotionPiece(move)] ?? 0;
+      positions[movePromotionPiece(move)!] = promoBitboard | endMask;
 
       // Remove pawn bit from its bitboard entirely (already handled)
     } else {
       // Normal move
       newBitboard = newBitboard | endMask;
-      positions[move.piece] = newBitboard;
+      positions[movePiece(move)] = newBitboard;
     }
 
     whiteToMove = !whiteToMove;
@@ -530,39 +529,39 @@ Bitboard _computePawnAttack(int square, PieceColor color) {
     //print("UNMAKING MOVE: Restoring EP square to: ${enPassantSquare}");
 
     // Undo piece movement
-    Piece movedPiece = move.piece;
+    Piece movedPiece = movePiece(move);
     Bitboard bb = positions[movedPiece]!;
-    bb &= ~(1 << move.endingSquare); // remove from end
-    bb |= 1 << move.startingSquare;  // restore start
+    bb &= ~(1 << endingSquare(move)); // remove from end
+    bb |= 1 << startingSquare(move);  // restore start
     positions[movedPiece] = bb;
 
     // Restore captured piece
     if (last.capturedPiece != null) {
       Piece cap = last.capturedPiece!;
-      positions[cap] = positions[cap]! | (1 << move.endingSquare);
+      positions[cap] = positions[cap]! | (1 << endingSquare(move));
     }
 
     // Handle undo special moves (castle, en passant, etc.)
-    if (move.isCastle) {
-      if (move.endingSquare - move.startingSquare == 2) {
+    if (isCastle(move)) {
+      if (endingSquare(move) - startingSquare(move) == 2) {
         // kingside
-        int rookStart = move.piece.color == PieceColor.WHITE ? 7 : 63;
-        int rookEnd = move.piece.color == PieceColor.WHITE ? 5 : 61;
-        undoRookForCastle(move.piece.color, rookStart, rookEnd);
-      } else if (move.endingSquare - move.startingSquare == -2) {
+        int rookStart = movePiece(move).color == PieceColor.WHITE ? 7 : 63;
+        int rookEnd = movePiece(move).color == PieceColor.WHITE ? 5 : 61;
+        undoRookForCastle(movePiece(move).color, rookStart, rookEnd);
+      } else if (endingSquare(move) - startingSquare(move) == -2) {
         // queenside
-        int rookStart = move.piece.color == PieceColor.WHITE ? 0 : 56;
-        int rookEnd = move.piece.color == PieceColor.WHITE ? 3 : 59;
-        undoRookForCastle(move.piece.color, rookStart, rookEnd);
+        int rookStart = movePiece(move).color == PieceColor.WHITE ? 0 : 56;
+        int rookEnd = movePiece(move).color == PieceColor.WHITE ? 3 : 59;
+        undoRookForCastle(movePiece(move).color, rookStart, rookEnd);
       }
     }
 
       // Undo en passant
-    if (move.isEnPassant && move.capture) {
-        int capturedPawnSquare = move.piece.color == PieceColor.WHITE
-            ? move.endingSquare - 8
-            : move.endingSquare + 8;
-        final Piece capturedPawn = move.piece.color == PieceColor.WHITE
+    if (isEnPassant(move) && isCapture(move)) {
+        int capturedPawnSquare = movePiece(move).color == PieceColor.WHITE
+            ? endingSquare(move) - 8
+            : endingSquare(move) + 8;
+        final Piece capturedPawn = movePiece(move).color == PieceColor.WHITE
             ? Piece.blackPawn
             : Piece.whitePawn;
         positions[capturedPawn] =
@@ -570,20 +569,20 @@ Bitboard _computePawnAttack(int square, PieceColor color) {
     }
 
     //undo promotion
-    if (move.promotionPiece != null) {
+    if (isPromo(move)) {
       // 1️⃣ Remove the promoted piece from the board
-      Bitboard promotedBitboard = positions[move.promotionPiece]!;
-      Bitboard endMask = 1 << move.endingSquare;
+      Bitboard promotedBitboard = positions[movePromotionPiece(move)]!;
+      Bitboard endMask = 1 << endingSquare(move);
       promotedBitboard &= ~endMask; // clear promoted piece bit
-      positions[move.promotionPiece!] = promotedBitboard;
+      positions[movePromotionPiece(move)!] = promotedBitboard;
 
       // 2️⃣ Restore the pawn on its starting square
-      final Piece pawn = (move.piece.color == PieceColor.WHITE)
+      final Piece pawn = (movePiece(move).color == PieceColor.WHITE)
           ? Piece.whitePawn
           : Piece.blackPawn;
 
       Bitboard pawnBitboard = positions[pawn]!;
-      Bitboard startMask = 1 << move.startingSquare;
+      Bitboard startMask = 1 << startingSquare(move);
       pawnBitboard |= startMask; // put pawn back
       positions[pawn] = pawnBitboard;
     }
@@ -666,7 +665,7 @@ Bitboard _computePawnAttack(int square, PieceColor color) {
   }
 
   bool isLegalMove(Move move){
-    List<Move> legalMoves = generateFullLegalMoves(move.startingSquare);
+    List<Move> legalMoves = generateFullLegalMoves(startingSquare(move));
 
     return legalMoves.contains(move);
   }
@@ -718,11 +717,11 @@ Bitboard _computePawnAttack(int square, PieceColor color) {
         }
 
         if(isOppositeColor(piece, getPieceAt(targetSquare))){
-          legalMoves.add(Move(piece, index, targetSquare, true));
+          legalMoves.add(makeMoveInt(from: index, to: targetSquare, movingPiece: piece, color: piece.color, isCapture: true));
           break;
         }
 
-        legalMoves.add(Move(piece, index, targetSquare, false));
+        legalMoves.add(makeMoveInt(from: index, to: targetSquare, movingPiece: piece, color: piece.color, isCapture: false));
       }
     }
 
@@ -746,7 +745,7 @@ Bitboard _computePawnAttack(int square, PieceColor color) {
 
       if(isSameColor(piece, getPieceAt(targetSquare))) continue;
 
-      legalMoves.add(Move(piece,index,targetSquare, isOppositeColor(piece, getPieceAt(targetSquare))));
+      legalMoves.add(makeMoveInt(from: index, to: targetSquare, movingPiece: piece, color: piece.color, isCapture: isOppositeColor(piece, getPieceAt(targetSquare))));
     }
 
     return legalMoves;
@@ -757,9 +756,9 @@ Bitboard _computePawnAttack(int square, PieceColor color) {
 
     if (piece == Piece.whitePawn){
       int rank = index ~/ 8;
-      if(rank == 1 && getPieceAt(index+16) == null && getPieceAt(index+8) == null) legalMoves.add(Move(piece, index, index+16, false));
+      if(rank == 1 && getPieceAt(index+16) == null && getPieceAt(index+8) == null) legalMoves.add(makeMoveInt(from: index, to: index+16, movingPiece: piece, color: piece.color, isCapture: false));
 
-      if(getPieceAt(index + 8) == null) legalMoves.add(Move(piece,index, index+8, false));
+      if(getPieceAt(index + 8) == null) legalMoves.add(makeMoveInt(from: index, to: index+8, movingPiece: piece, color: piece.color, isCapture: false));
 
 
       if(isOppositeColor(piece, getPieceAt(index+9)) || (index + 9 == enPassantSquare && whiteCanEnPassant != null && whiteCanEnPassant!)){
@@ -768,7 +767,7 @@ Bitboard _computePawnAttack(int square, PieceColor color) {
          // Check file wrapping
         int fileDiff = ((index+9) % 8) - (index % 8);
         if (fileDiff.abs() == 1){ // prevent illegal wrap
-          legalMoves.add(Move(piece, index, index+9, true, isEnPassant: canEnPassant));
+          legalMoves.add(makeMoveInt(from: index, to: index+9, movingPiece: piece, color: piece.color, isCapture: true, isEP: canEnPassant));
         } 
       }
 
@@ -779,15 +778,15 @@ Bitboard _computePawnAttack(int square, PieceColor color) {
          // Check file wrapping
         int fileDiff = ((index+7) % 8) - (index % 8);
         if (fileDiff.abs() == 1){ // prevent illegal wrap
-          legalMoves.add(Move(piece, index, index+7, true, isEnPassant: canEnPassant));
+          legalMoves.add(makeMoveInt(from: index, to: index+7, movingPiece: piece, color: piece.color, isCapture: true, isEP: canEnPassant));
         } 
       }
 
     } else if (piece == Piece.blackPawn){
       int rank = index ~/ 8;
-      if(rank == 6 && getPieceAt(index-16) == null && getPieceAt(index-8) == null) legalMoves.add(Move(piece, index, index-16, false));
+      if(rank == 6 && getPieceAt(index-16) == null && getPieceAt(index-8) == null) legalMoves.add(makeMoveInt(from: index, to: index-16, movingPiece: piece, color: piece.color, isCapture: false));
 
-      if(getPieceAt(index - 8) == null) legalMoves.add(Move(piece,index, index-8, false));
+      if(getPieceAt(index - 8) == null) legalMoves.add(makeMoveInt(from: index, to: index-8, movingPiece: piece, color: piece.color, isCapture: false));
 
       if(isOppositeColor(piece, getPieceAt(index-9)) || (index-9 == enPassantSquare && whiteCanEnPassant != null && !whiteCanEnPassant!)){
         bool canEnPassant = enPassantSquare != null && index - 9 == enPassantSquare && whiteCanEnPassant == false;
@@ -795,7 +794,7 @@ Bitboard _computePawnAttack(int square, PieceColor color) {
          // Check file wrapping
         int fileDiff = ((index-9) % 8) - (index % 8);
         if (fileDiff.abs() == 1){ // prevent illegal wrap
-          legalMoves.add(Move(piece, index, index-9, true, isEnPassant: canEnPassant));
+          legalMoves.add(makeMoveInt(from: index, to: index-9, movingPiece: piece, color: piece.color, isCapture: true, isEP: canEnPassant));
         } 
       }
 
@@ -805,7 +804,7 @@ Bitboard _computePawnAttack(int square, PieceColor color) {
          // Check file wrapping
         int fileDiff = ((index-7) % 8) - (index % 8);
         if (fileDiff.abs() == 1){ // prevent illegal wrap
-          legalMoves.add(Move(piece, index, index-7, true, isEnPassant: canEnPassant));
+          legalMoves.add(makeMoveInt(from: index, to: index-7, movingPiece: piece, color: piece.color, isCapture: true, isEP: canEnPassant));
         } 
       }
     }
@@ -813,13 +812,13 @@ Bitboard _computePawnAttack(int square, PieceColor color) {
     List<Move> legalMovesAndPromotion = [];
       
       for(Move m in legalMoves){
-        if(isPromotionRank(m.endingSquare, m.piece.color) && m.piece.color == PieceColor.WHITE){
+        if(isPromotionRank(endingSquare(m), moveColor(m)) && moveColor(m) == PieceColor.WHITE){
           for (Piece promo in [Piece.whiteQueen, Piece.whiteRook, Piece.whiteBishop, Piece.whiteKnight]) {
-            legalMovesAndPromotion.add(Move(m.piece, m.startingSquare, m.endingSquare, m.capture, isEnPassant: m.isEnPassant, isCastle: m.isCastle, promotionPiece: promo));
+            legalMovesAndPromotion.add(makeMoveInt(from: startingSquare(m), to: endingSquare(m), movingPiece: movePiece(m), color: moveColor(m), isCapture: isCapture(m), isEP: isEnPassant(m), isCastle: isCastle(m), promotionPiece: promo));
           }
-        } else if(isPromotionRank(m.endingSquare, m.piece.color) && m.piece.color == PieceColor.BLACK){
+        } else if(isPromotionRank(endingSquare(m), moveColor(m)) && moveColor(m) == PieceColor.BLACK){
           for (Piece promo in [Piece.blackQueen, Piece.blackRook, Piece.blackBishop, Piece.blackKnight]) {
-            legalMovesAndPromotion.add(Move(m.piece, m.startingSquare, m.endingSquare, m.capture, isEnPassant: m.isEnPassant, isCastle: m.isCastle, promotionPiece: promo));
+            legalMovesAndPromotion.add(makeMoveInt(from: startingSquare(m), to: endingSquare(m), movingPiece: movePiece(m), color: moveColor(m), isCapture: isCapture(m), isEP: isEnPassant(m), isCastle: isCastle(m), promotionPiece: promo));
           }
         } else {
           legalMovesAndPromotion.add(m);
@@ -841,28 +840,28 @@ Bitboard _computePawnAttack(int square, PieceColor color) {
     if (whiteCanCastleKingside && color == PieceColor.WHITE && getPieceAt(7) == Piece.whiteRook) {
       if (wKingsidePath.every((s) => getPieceAt(s) == null) &&
           wKingsidePath.every((s) => !isSquareAttacked(s, PieceColor.BLACK))) {
-        legalMoves.add(const Move(Piece.whiteKing, wKingStart, 6, false, isCastle: true));
+        legalMoves.add(makeMoveInt(from: wKingStart, to: 6, movingPiece: Piece.whiteKing, color: color, isCastle: true));
       }
     }
 
     if (whiteCanCastleQueenside && color == PieceColor.WHITE && getPieceAt(0) == Piece.whiteRook) {
       if (wQueensidePath.every((s) => getPieceAt(s) == null) &&
           wQueensidePath.getRange(1, 3).every((s) => !isSquareAttacked(s, PieceColor.BLACK))) {
-        legalMoves.add(const Move(Piece.whiteKing, wKingStart, 2, false, isCastle: true));
+        legalMoves.add(makeMoveInt(from: wKingStart, to: 2, movingPiece: Piece.whiteKing, color: color, isCastle: true));
       }
     }
 
     if (blackCanCastleKingside && color == PieceColor.BLACK && getPieceAt(63) == Piece.blackRook) {
       if (bKingsidePath.every((s) => getPieceAt(s) == null) &&
           bKingsidePath.every((s) => !isSquareAttacked(s, PieceColor.WHITE))) {
-        legalMoves.add(const Move(Piece.blackKing, bKingStart, 62, false, isCastle: true));
+        legalMoves.add(makeMoveInt(from: bKingStart, to: 62, movingPiece: Piece.blackKing, color: color, isCastle: true));
       }
     }
 
     if (blackCanCastleQueenside && color == PieceColor.BLACK && getPieceAt(56) == Piece.blackRook) {
       if (bQueensidePath.every((s) => getPieceAt(s) == null) &&
           bQueensidePath.getRange(1, 3).every((s) => !isSquareAttacked(s, PieceColor.WHITE))) {
-        legalMoves.add(const Move(Piece.blackKing, bKingStart, 58, false, isCastle: true));
+        legalMoves.add(makeMoveInt(from: bKingStart, to: 58, movingPiece: Piece.blackKing, color: color, isCastle: true));
       }
     }
 
@@ -872,14 +871,14 @@ Bitboard _computePawnAttack(int square, PieceColor color) {
   void castleMove(Move kingMove){
     int rookStart, rookEnd;
 
-    if (kingMove.endingSquare - kingMove.startingSquare == 2) {
+    if (endingSquare(kingMove) - startingSquare(kingMove) == 2) {
       // King-side castling
-      rookStart = kingMove.startingSquare + 3; // rook originally on h-file
-      rookEnd = kingMove.startingSquare + 1;   // rook moves next to king
-    } else if (kingMove.endingSquare - kingMove.startingSquare == -2) {
+      rookStart = startingSquare(kingMove) + 3; // rook originally on h-file
+      rookEnd = startingSquare(kingMove) + 1;   // rook moves next to king
+    } else if (endingSquare(kingMove) - startingSquare(kingMove) == -2) {
       // Queen-side castling
-      rookStart = kingMove.startingSquare - 4; // rook originally on a-file
-      rookEnd = kingMove.startingSquare - 1;   // rook moves next to king
+      rookStart = startingSquare(kingMove) - 4; // rook originally on a-file
+      rookEnd = startingSquare(kingMove) - 1;   // rook moves next to king
     } else {
       throw Exception("Invalid castling move");
     }
@@ -913,11 +912,11 @@ Bitboard _computePawnAttack(int square, PieceColor color) {
       }
 
       if(isOppositeColor(piece, getPieceAt(targetSquare))){
-        legalMoves.add(Move(piece, index, targetSquare, true));
+        legalMoves.add(makeMoveInt(from: index, to: targetSquare, movingPiece: piece, color: piece.color, isCapture: true));
         continue;
       }
 
-      legalMoves.add(Move(piece, index, targetSquare, false));
+      legalMoves.add(makeMoveInt(from: index, to: targetSquare, movingPiece: piece, color: piece.color, isCapture: false));
     }
 
     legalMoves += generateCastleMoves(piece.color);
@@ -1025,7 +1024,7 @@ Bitboard _computePawnAttack(int square, PieceColor color) {
   }
 
   void setPreMove(Move premove){
-    if(premove.piece.color == PieceColor.WHITE) {
+    if(moveColor(premove) == PieceColor.WHITE) {
       premoveWhite.contains(premove) ? removePremove(premove) : premoveWhite.add(premove);
     } else {
       premoveBlack.contains(premove) ? removePremove(premove) : premoveBlack.add(premove);
@@ -1033,10 +1032,8 @@ Bitboard _computePawnAttack(int square, PieceColor color) {
   }
 
   //Removes this premove and any premoves after it
-  void removePremove(Move premove){
-    ListQueue<Move> temp = ListQueue();
-    
-    ListQueue<Move> original = premove.piece.color == PieceColor.WHITE ? premoveWhite : premoveBlack;
+  void removePremove(Move premove){    
+    ListQueue<Move> original = moveColor(premove) == PieceColor.WHITE ? premoveWhite : premoveBlack;
 
     while(original.isNotEmpty){
       Move move = original.removeFirst();
@@ -1227,10 +1224,10 @@ Bitboard _computePawnAttack(int square, PieceColor color) {
 
       // If we're at the leaf depth, count move types here
       if (depth == 1) {
-        if (move.capture) stats.captures++;
-        if (move.promotionPiece != null) stats.promotions++;
-        if (move.isCastle) stats.castles++;
-        if (move.isEnPassant) stats.enPassant++;
+        if (isCapture(move)) stats.captures++;
+        if (isPromo(move)) stats.promotions++;
+        if (isCastle(move)) stats.castles++;
+        if (isEnPassant(move)) stats.enPassant++;
       }
     }
 
@@ -1246,9 +1243,9 @@ Bitboard _computePawnAttack(int square, PieceColor color) {
     for (final move in moves) {
 
       // DEBUG: print ep moves
-      if (move.isEnPassant) {
-        print("Depth $depth: en passant move from ${(move.startingSquare)} "
-            "to ${indexToSquare(move.endingSquare)}, EP square: $enPassantSquare");
+      if (isEnPassant(move)) {
+        print("Depth $depth: en passant move from ${(startingSquare(move))} "
+            "to ${indexToSquare(endingSquare(move))}, EP square: $enPassantSquare");
       }
 
       makeMove(move);
@@ -1427,38 +1424,104 @@ enum PieceColor {
   PieceColor get opposite => this == WHITE ? BLACK : WHITE;
 }
 
+typedef Move = int;
 
-class Move{
-  final Piece piece;
-  final int startingSquare;
-  final int endingSquare;
-  final bool capture;
-  final bool isEnPassant;
-  final bool isCastle;
-  final Piece? promotionPiece;
+// Bit layout: [ 0..5 from | 6..11 to | 12..15 flags | 16..19 promoType ]
+const int FROM_MASK = 0x3F;       // bits 0–5
+const int TO_MASK = 0xFC0;        // bits 6–11
+const int FLAGS_MASK = 0xF000;    // bits 12–15
+const int PROMO_MASK = 0xF0000;   // bits 16–19
 
-  const Move(this.piece, this.startingSquare, this.endingSquare, this.capture, {this.isEnPassant = false, this.isCastle = false, this.promotionPiece});
+// Flag bits
+const int FLAG_CAPTURE           = 1 << 0;  // 0001
+const int FLAG_DOUBLE_PAWN_PUSH  = 1 << 1;  // 0010
+const int FLAG_EN_PASSANT        = 1 << 2;  // 0100
+const int FLAG_CASTLE            = 1 << 3;  // 1000
+const int FLAG_PROMOTION         = 1 << 4;  // 1_0000 (needs extra bit)
 
-  @override
-  bool operator ==(Object other) {
-    // 1. Quick check for same instance
-    if (identical(this, other)) return true;
+// Color bit
+const int COLOR_BIT = 1 << 28;
 
-    // 2. Check if 'other' is of the same type and not null
-    if (other is! Move || runtimeType != other.runtimeType) return false;
+/// movingPiece: 1=pawn, 2=knight, 3=bishop, 4=rook, 5=queen, 6=king
+Move makeMoveInt({
+  required int from,
+  required int to,
+  required Piece movingPiece,     // 1–6
+  required PieceColor color,    // side to move
+  bool isCapture = false,
+  bool isEP = false,
+  bool isCastle = false,
+  Piece? promotionPiece,       // 0 = none, 1–4 = Q,R,B,N
+}) {
+  int c = color == PieceColor.BLACK ? 1 : 0;
+  int flags = 0;
+  if (isCapture) flags |= FLAG_CAPTURE;
+  if (isEP) flags |= FLAG_EN_PASSANT;
+  if (isCastle) flags |= FLAG_CASTLE;
+  if (promotionPiece != null) flags |= FLAG_PROMOTION;
 
-    // 3. Compare relevant properties for value equality
-    return startingSquare == other.startingSquare 
-      && endingSquare == endingSquare
-      && piece == piece;
+  int promoInt = 0;
+  if(promotionPiece == Piece.blackQueen || promotionPiece == Piece.whiteQueen){
+    print("Entered p2");
+    promoInt = 1;
   }
+  if(promotionPiece == Piece.blackRook || promotionPiece == Piece.whiteRook) promoInt = 2;
+  if(promotionPiece == Piece.blackBishop || promotionPiece == Piece.whiteBishop) promoInt = 3;
+  if(promotionPiece == Piece.blackKnight || promotionPiece == Piece.whiteKnight) promoInt = 4;
 
-  // Important: If you override ==, you MUST also override hashCode.
-  // This is crucial for collections like Maps and Sets to work correctly.
-  @override
-  int get hashCode => Object.hash(piece.charValue, startingSquare, endingSquare);
+  return (from & 0x3F)
+       | ((to & 0x3F) << 6)
+       | ((flags & 0xFF) << 12)
+       | ((promoInt & 0xF) << 20)
+       | ((movingPiece.pieceInt & 0xF) << 24)
+       | (c << 28);
 }
 
+//Extract Data
+int startingSquare(Move m) => m & 0x3F;
+int endingSquare(Move m) => (m >> 6) & 0x3F;
+int moveFlags(Move m) => (m >> 12) & 0xFF;
+int movePromotion(Move m) => (m >> 20) & 0xF;
+int movePieceType(Move m) => (m >> 24) & 0xF;
+PieceColor moveColor(Move m) => ((m >> 28) & 1) == 0 ? PieceColor.WHITE : PieceColor.BLACK;
+
+Piece? movePromotionPiece(Move m) {
+  if (!isPromo(m)) return null;
+
+  final promo = movePromotion(m);
+  final color = moveColor(m);
+
+  switch (promo) {
+    case 1: return color == PieceColor.WHITE ? Piece.whiteQueen : Piece.blackQueen;
+    case 2: return color == PieceColor.WHITE ? Piece.whiteRook : Piece.blackRook;
+    case 3: return color == PieceColor.WHITE ? Piece.whiteBishop : Piece.blackBishop;
+    case 4: return color == PieceColor.WHITE ? Piece.whiteKnight : Piece.blackKnight;
+    default: throw Exception("Invalid promotion type: $promo");
+  }
+}
+
+Piece movePiece(Move m) {
+  final type = movePieceType(m);
+  final color = moveColor(m);
+
+  switch (type) {
+    case 1: return color == PieceColor.WHITE ? Piece.whitePawn : Piece.blackPawn;
+    case 2: return color == PieceColor.WHITE ? Piece.whiteKnight : Piece.blackKnight;
+    case 3: return color == PieceColor.WHITE ? Piece.whiteBishop : Piece.blackBishop;
+    case 4: return color == PieceColor.WHITE ? Piece.whiteRook : Piece.blackRook;
+    case 5: return color == PieceColor.WHITE ? Piece.whiteQueen : Piece.blackQueen;
+    case 6: return color == PieceColor.WHITE ? Piece.whiteKing : Piece.blackKing;
+    default: throw Exception("There was no piece in this move for some reason");
+  }
+}
+
+/// Helpers
+// Flag helpers
+bool isCapture(Move m) => (moveFlags(m) & FLAG_CAPTURE) != 0;
+bool isEnPassant(Move m) => (moveFlags(m) & FLAG_EN_PASSANT) != 0;
+bool isDoublePawnPush(Move m) => (moveFlags(m) & FLAG_DOUBLE_PAWN_PUSH) != 0;
+bool isCastle(Move m) => (moveFlags(m) & FLAG_CASTLE) != 0;
+bool isPromo(Move m) => (moveFlags(m) & FLAG_PROMOTION) != 0;
 
 
 class MoveState {
@@ -1578,7 +1641,7 @@ void dividePerft(GameState game, int depth) {
 void main(){
     GameState game = GameState();
 
-    Move move = const Move(Piece.whitePawn, 11, 19, false);
+    Move move = makeMoveInt(from: 11, to: 10, movingPiece: Piece.whitePawn, color: PieceColor.WHITE, isCapture: false);
 
     print("Starting");
 
