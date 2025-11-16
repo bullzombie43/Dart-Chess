@@ -22,25 +22,80 @@ String moveNotation(Move move) {
   return '$from$to$promo';
 }
 
+// Pre-computed Lookup Table (Only calculated once)
+// Maps the high 6 bits of the magic product to the correct bit index (0-63)
+// The magic number is a 64-bit De Bruijn sequence: 0x07EDD5E59A4E28C2
+const List<int> DE_BRUIJN_64_INDEX = [
+  0, 1, 48, 2, 57, 49, 28, 3,
+  61, 58, 50, 42, 38, 29, 17,
+  4, 62, 55, 59, 36, 53, 51,
+  43, 22, 45, 39, 33, 30, 24,
+  18, 12, 5, 63, 47, 56, 27,
+  60, 41, 37, 16, 54, 35, 52, 
+  21, 44, 32, 23, 11, 46, 26,
+  40, 15, 34, 20, 31, 10, 25,
+  14, 19, 9, 13, 8, 7, 6
+];
+
+const int DE_BRUIJN_CONST = 0x03f79d71b4cb0a89;
+const int BITS_IN_INT = 64; // Assuming your Bitboard uses 64-bit int
+
+// The 64-bit mask: (2^64) - 1. Used to force the desired 64-bit wrap-around.
+const int INT64_MAX_MASK = 0xFFFFFFFFFFFFFFFF;
+
+int trailingZeroCount_DeBruijn(int n) {
+  if(n == 0) return -1; //return -1 because there are all zeroes so aka no piece on this board
+  int lsb = n & -n;
+
+ // Perform multiplication and then take the lower 64 bits.
+ int product = (lsb * DE_BRUIJN_CONST);
+
+ int index = product >>> 58; // unsigned shift right by 58 bits.
+
+  // Use the index to look up the precomputed table
+  return DE_BRUIJN_64_INDEX[index];
+    
+}
+
+int trailingZeroCount(int n){
+    if (n == 0) {
+    // The number of trailing zeros for 0 is often considered to be the number of bits in the integer type,
+    // or undefined. For simplicity here, we'll return 0, but consider your specific requirements.
+      return 0;
+    }
+
+    int count = 0;
+
+    // Loop while the least significant bit is 0
+    while ((n & 1) == 0) {
+      count++;
+      n >>= 1; // Right shift to check the next bit
+    }
+
+    return count;
+  }
+
+
 
 enum Piece {
-  whitePawn("P", PieceColor.WHITE, "wP.svg", 1),
-  whiteKnight("N", PieceColor.WHITE, "wN.svg", 2),
-  whiteBishop("B", PieceColor.WHITE, "wB.svg", 3),
-  whiteRook("R", PieceColor.WHITE, "wR.svg", 4),
-  whiteQueen("Q", PieceColor.WHITE, "wQ.svg",5 ),
-  whiteKing("K", PieceColor.WHITE, "wK.svg", 6),
-  blackPawn("p", PieceColor.BLACK, "bP.svg", 1),
-  blackKnight("n", PieceColor.BLACK, "bN.svg", 2),
-  blackBishop("b", PieceColor.BLACK, "bB.svg", 3),
-  blackRook("r", PieceColor.BLACK, "bR.svg", 4),
-  blackQueen("q", PieceColor.BLACK, "bQ.svg", 5),
-  blackKing("k", PieceColor.BLACK, "bK.svg", 6);
+  whitePawn("P", PieceColor.WHITE, "wP.svg", 1, 0),
+  whiteKnight("N", PieceColor.WHITE, "wN.svg", 2, 1),
+  whiteBishop("B", PieceColor.WHITE, "wB.svg", 3, 2),
+  whiteRook("R", PieceColor.WHITE, "wR.svg", 4, 3) ,
+  whiteQueen("Q", PieceColor.WHITE, "wQ.svg",5, 4),
+  whiteKing("K", PieceColor.WHITE, "wK.svg", 6, 5),
+  blackPawn("p", PieceColor.BLACK, "bP.svg", 1, 6),
+  blackKnight("n", PieceColor.BLACK, "bN.svg", 2, 7),
+  blackBishop("b", PieceColor.BLACK, "bB.svg", 3, 8),
+  blackRook("r", PieceColor.BLACK, "bR.svg", 4, 9),
+  blackQueen("q", PieceColor.BLACK, "bQ.svg", 5, 10),
+  blackKing("k", PieceColor.BLACK, "bK.svg", 6, 11);
 
   final String charValue;
   final PieceColor color;
   final String asset;
   final int pieceInt;
+  final int listIndex;
   
   bool get isKing => this == Piece.blackKing || this == Piece.whiteKing;
   bool get isRook => this == Piece.blackRook || this == Piece.whiteRook;
@@ -67,7 +122,25 @@ enum Piece {
     }
   }
 
-  const Piece(this.charValue, this.color, this.asset, this.pieceInt);
+  static String charFromIndex(int i){
+    switch (i) {
+      case 0: return 'P';
+      case 1: return 'N';
+      case 2: return 'B';
+      case 3: return 'R';
+      case 4: return 'Q';
+      case 5: return 'K';
+      case 6: return 'p';
+      case 7: return 'n';
+      case 8: return 'b';
+      case 9: return 'r';
+      case 10: return 'q';
+      case 11: return 'k';
+      default: return '-';
+    }
+  }
+
+  const Piece(this.charValue, this.color, this.asset, this.pieceInt, this.listIndex);
 }  
 
 class GameState {
@@ -88,9 +161,20 @@ class GameState {
   static const List<int> bKingsidePath = [61, 62];
   static const List<int> bQueensidePath = [57, 58, 59];
 
-  final Map<Piece,Bitboard> positions;
-  final Map<Piece,Bitboard> attacks;
+  late final List<Bitboard> _PieceBitboards;
 
+  Bitboard get whitePawnBB => _PieceBitboards[0];
+  Bitboard get whiteKnightBB => _PieceBitboards[1];
+  Bitboard get whiteBishopBB => _PieceBitboards[2];
+  Bitboard get whiteRookBB => _PieceBitboards[3];
+  Bitboard get whiteQueenBB => _PieceBitboards[4];
+  Bitboard get whiteKingBB => _PieceBitboards[5];
+  Bitboard get blackPawnBB => _PieceBitboards[6];
+  Bitboard get blackKnightBB => _PieceBitboards[7];
+  Bitboard get blackBishopBB => _PieceBitboards[8];
+  Bitboard get blackRookBB => _PieceBitboards[9];
+  Bitboard get blackQueenBB => _PieceBitboards[10];
+  Bitboard get blackKingBB => _PieceBitboards[11];
 
   final List<Bitboard> knightAttacks = List.filled(64, 0);
   final List<Bitboard> kingAttacks = List.filled(64, 0);
@@ -147,88 +231,69 @@ class GameState {
     return data;
   }
 
-  GameState() :
-    positions = {
-      Piece.whitePawn :   0x000000000000FF00,
-      Piece.whiteKnight : 0x0000000000000042,
-      Piece.whiteBishop : 0x0000000000000024,
-      Piece.whiteRook :   0x0000000000000081,
-      Piece.whiteQueen :  0x0000000000000008,
-      Piece.whiteKing :   0x0000000000000010,
-      Piece.blackPawn :   0x00FF000000000000,
-      Piece.blackKnight : 0x4200000000000000,
-      Piece.blackBishop : 0x2400000000000000,
-      Piece.blackRook :   0x8100000000000000,
-      Piece.blackQueen :  0x0800000000000000,
-      Piece.blackKing :   0x1000000000000000
-    },
+  GameState()  
+    {
+      // Initialize the piece bitboard list here (after the individual bitboards are set).
+      _PieceBitboards = [
+          0x000000000000FF00,
+          0x0000000000000042,
+          0x0000000000000024,
+          0x0000000000000081,
+          0x0000000000000008,
+          0x0000000000000010,
+          0x00FF000000000000,
+          0x4200000000000000,
+          0x2400000000000000,
+          0x8100000000000000,
+          0x0800000000000000,
+          0x1000000000000000
 
-    attacks = {
-      Piece.whitePawn :   0x000000000000FF00,
-      Piece.whiteKnight : 0x0000000000000042,
-      Piece.whiteBishop : 0x0000000000000024,
-      Piece.whiteRook :   0x0000000000000081,
-      Piece.whiteQueen :  0x0000000000000008,
-      Piece.whiteKing :   0x0000000000000010,
-      Piece.blackPawn :   0x00FF000000000000,
-      Piece.blackKnight : 0x4200000000000000,
-      Piece.blackBishop : 0x2400000000000000,
-      Piece.blackRook :   0x8100000000000000,
-      Piece.blackQueen :  0x0800000000000000,
-      Piece.blackKing :   0x1000000000000000
-    } {
+        ];
+      
       initAttackTables();
     }
 
   GameState.fromValues({
-    Map<Piece, Bitboard>? positions,
+    required List<Bitboard> positions,
     bool? whiteToMove,
     this.enPassantSquare,
     this.whiteCanEnPassant,
   }) :
-    positions = positions ?? {
-      Piece.whitePawn :   0x000000000000FF00,
-      Piece.whiteKnight : 0x0000000000000042,
-      Piece.whiteBishop : 0x0000000000000024,
-      Piece.whiteRook :   0x0000000000000081,
-      Piece.whiteQueen :  0x0000000000000008,
-      Piece.whiteKing :   0x0000000000000010,
-      Piece.blackPawn :   0x00FF000000000000,
-      Piece.blackKnight : 0x4200000000000000,
-      Piece.blackBishop : 0x2400000000000000,
-      Piece.blackRook :   0x8100000000000000,
-      Piece.blackQueen :  0x0800000000000000,
-      Piece.blackKing :   0x1000000000000000
-    },
-    attacks = {
-      Piece.whitePawn :   0x000000000000FF00,
-      Piece.whiteKnight : 0x0000000000000042,
-      Piece.whiteBishop : 0x0000000000000024,
-      Piece.whiteRook :   0x0000000000000081,
-      Piece.whiteQueen :  0x0000000000000008,
-      Piece.whiteKing :   0x0000000000000010,
-      Piece.blackPawn :   0x00FF000000000000,
-      Piece.blackKnight : 0x4200000000000000,
-      Piece.blackBishop : 0x2400000000000000,
-      Piece.blackRook :   0x8100000000000000,
-      Piece.blackQueen :  0x0800000000000000,
-      Piece.blackKing :   0x1000000000000000
-    },
+
     whiteToMove = whiteToMove ?? true
-  ;
+  
+  {
+    // Initialize the piece bitboard list here (after the individual bitboards are set).
+      _PieceBitboards = [
+          whitePawnBB,
+          whiteKnightBB,
+          whiteBishopBB,
+          whiteRookBB,
+          whiteQueenBB,
+          whiteKingBB,
+          blackPawnBB,
+          blackKnightBB,
+          blackBishopBB,
+          blackRookBB,
+          blackQueenBB,
+          blackKingBB,
+        ];
+  }
 
   GameState clone() {
-    final clonedPositions = <Piece, Bitboard>{};
-    for (final entry in positions.entries) {
-      clonedPositions[entry.key] = entry.value.toInt();
+      return GameState.fromValues(
+        positions: _PieceBitboards,
+        whiteToMove: whiteToMove,
+        enPassantSquare: enPassantSquare,
+        whiteCanEnPassant: whiteCanEnPassant,
+      );
     }
 
-    return GameState.fromValues(
-      positions: clonedPositions,
-      whiteToMove: whiteToMove,
-      enPassantSquare: enPassantSquare,
-      whiteCanEnPassant: whiteCanEnPassant,
-    );
+ void restore(GameState other) {
+    _PieceBitboards = other._PieceBitboards;
+    whiteToMove = other.whiteToMove;
+    enPassantSquare = other.enPassantSquare;
+    whiteCanEnPassant = other.whiteCanEnPassant;
   }
 
 void initAttackTables() {
@@ -336,15 +401,6 @@ Bitboard _computePawnAttack(int square, PieceColor color) {
   return attacks;
 }
 
-  void restore(GameState other) {
-    positions
-      ..clear()
-      ..addAll(other.positions);
-    whiteToMove = other.whiteToMove;
-    enPassantSquare = other.enPassantSquare;
-    whiteCanEnPassant = other.whiteCanEnPassant;
-  }
-
   void printSingleBitBoard(Bitboard bitboard){
     for (int rank = 7; rank >= 0; rank--) {
       for (int file = 0; file <= 7; file++) {
@@ -360,18 +416,17 @@ Bitboard _computePawnAttack(int square, PieceColor color) {
   }
 
   void printBoard(){
-    Map<Piece, Bitboard> bitboards = positions;
-
     for (int rank = 7; rank >= 0; rank--) {
       for (int file = 0; file <= 7; file++) {
         int square = rank * 8 + file;
         String s = ".";
-        for(MapEntry board in bitboards.entries){
+        for(int i = 0; i < _PieceBitboards.length; i++){
+          Bitboard board = _PieceBitboards[i];
           Bitboard mask = 1 << square;
-          bool hasPiece = (board.value & mask) != 0;
+          bool hasPiece = (board & mask) != 0;
 
           if(hasPiece){
-            s = board.key.charValue;
+            s = Piece.charFromIndex(i);
             break;
           }
         }
@@ -415,7 +470,7 @@ Bitboard _computePawnAttack(int square, PieceColor color) {
   }
 
   void makeMove(Move move){
-    Bitboard bitboard = positions[movePiece(move)]!;
+    Bitboard bitboard = _PieceBitboards[movePiece(move).index];
 
     //Check there is a piece at starting spot
     Bitboard startMask = 1 << startingSquare(move);
@@ -495,17 +550,17 @@ Bitboard _computePawnAttack(int square, PieceColor color) {
     // --- Handle promotion ---
     if (isPromo(move)) {
       // Remove pawn from its bitboard (already done in newBitboard)
-      positions[movePiece(move)] = newBitboard; // update pawn board
+      _PieceBitboards[movePiece(move).listIndex] = newBitboard; // update pawn board
 
       // Add the promoted piece to its bitboard
-      Bitboard promoBitboard = positions[movePromotionPiece(move)] ?? 0;
-      positions[movePromotionPiece(move)!] = promoBitboard | endMask;
+      Bitboard promoBitboard = _PieceBitboards[movePromotionPiece(move)!.listIndex];
+      _PieceBitboards[movePromotionPiece(move)!.listIndex] = promoBitboard | endMask;
 
       // Remove pawn bit from its bitboard entirely (already handled)
     } else {
       // Normal move
       newBitboard = newBitboard | endMask;
-      positions[movePiece(move)] = newBitboard;
+      _PieceBitboards[movePiece(move).listIndex] = newBitboard;
     }
 
     whiteToMove = !whiteToMove;
@@ -530,15 +585,15 @@ Bitboard _computePawnAttack(int square, PieceColor color) {
 
     // Undo piece movement
     Piece movedPiece = movePiece(move);
-    Bitboard bb = positions[movedPiece]!;
+    Bitboard bb = _PieceBitboards[movedPiece.listIndex];
     bb &= ~(1 << endingSquare(move)); // remove from end
     bb |= 1 << startingSquare(move);  // restore start
-    positions[movedPiece] = bb;
+    _PieceBitboards[movedPiece.listIndex] = bb;
 
     // Restore captured piece
     if (last.capturedPiece != null) {
       Piece cap = last.capturedPiece!;
-      positions[cap] = positions[cap]! | (1 << endingSquare(move));
+      _PieceBitboards[cap.listIndex] = _PieceBitboards[cap.listIndex] | (1 << endingSquare(move));
     }
 
     // Handle undo special moves (castle, en passant, etc.)
@@ -564,64 +619,69 @@ Bitboard _computePawnAttack(int square, PieceColor color) {
         final Piece capturedPawn = movePiece(move).color == PieceColor.WHITE
             ? Piece.blackPawn
             : Piece.whitePawn;
-        positions[capturedPawn] =
-            positions[capturedPawn]! | (1 << capturedPawnSquare);
+        _PieceBitboards[capturedPawn.listIndex] =
+            _PieceBitboards[capturedPawn.listIndex] | (1 << capturedPawnSquare);
     }
 
     //undo promotion
     if (isPromo(move)) {
       // 1️⃣ Remove the promoted piece from the board
-      Bitboard promotedBitboard = positions[movePromotionPiece(move)]!;
+      Bitboard promotedBitboard = _PieceBitboards[movePromotionPiece(move)!.listIndex];
       Bitboard endMask = 1 << endingSquare(move);
       promotedBitboard &= ~endMask; // clear promoted piece bit
-      positions[movePromotionPiece(move)!] = promotedBitboard;
+      _PieceBitboards[movePromotionPiece(move)!.listIndex] = promotedBitboard;
 
       // 2️⃣ Restore the pawn on its starting square
       final Piece pawn = (movePiece(move).color == PieceColor.WHITE)
           ? Piece.whitePawn
           : Piece.blackPawn;
 
-      Bitboard pawnBitboard = positions[pawn]!;
+      Bitboard pawnBitboard = _PieceBitboards[pawn.listIndex];
       Bitboard startMask = 1 << startingSquare(move);
       pawnBitboard |= startMask; // put pawn back
-      positions[pawn] = pawnBitboard;
+      _PieceBitboards[pawn.listIndex] = pawnBitboard;
     }
   }
 
   void undoRookForCastle(PieceColor color, int start, int end) {
     final Piece rook = color == PieceColor.WHITE ? Piece.whiteRook : Piece.blackRook;
-    Bitboard rookBoard = positions[rook]!;
+    Bitboard rookBoard = _PieceBitboards[rook.listIndex];
 
     rookBoard &= ~(1 << end);
     rookBoard |= 1 << start;
 
-    positions[rook] = rookBoard;
+    _PieceBitboards[rook.listIndex] = rookBoard;
   }
 
   void removeCapturedPiece(int square) {
-    positions.forEach((piece, bb) {
-      if ((bb & (1 << square)) != 0) {
-        positions[piece] = bb & ~(1 << square);
-        if(piece == Piece.whiteRook && square == 7) whiteCanCastleKingside = false;
-        if(piece == Piece.whiteRook && square == 0) whiteCanCastleQueenside = false;
-        if(piece == Piece.blackRook && square == 56) blackCanCastleQueenside = false;
-        if(piece == Piece.blackRook && square == 63) blackCanCastleKingside = false;
+    for(int i = 0; i < _PieceBitboards.length; i++){
+      if(_PieceBitboards[i] & (1<<square) != 0) {
+        _PieceBitboards[i] = _PieceBitboards[i] & ~(1 << square);
+        if(i == Piece.whiteRook.listIndex && square == 7) whiteCanCastleKingside = false;
+        if(i == Piece.whiteRook.listIndex && square == 0) whiteCanCastleQueenside = false;
+        if(i == Piece.blackRook.listIndex && square == 56) blackCanCastleQueenside = false;
+        if(i == Piece.blackRook.listIndex && square == 63) blackCanCastleKingside = false;
       }
-    });
+    }
   }
 
   Piece? getPieceAt(int index){
-    if(index < 0) return null;
+    if(index < 0 || index > 63) return null;
 
-    for(MapEntry entry in positions.entries){
-      //Check there is a piece at starting spot
-      Bitboard startMask = 1 << index;
-      bool hasPiece = (entry.value & startMask) != 0;
+    Bitboard squareMask = 1 << index;
 
-      if(hasPiece){
-        return entry.key;
-      }
-    } 
+    if((whitePawnBB & squareMask) != 0) return Piece.whitePawn;
+    if((whiteKnightBB & squareMask) != 0) return Piece.whiteKnight;
+    if((whiteBishopBB & squareMask) != 0) return Piece.whiteBishop;
+    if((whiteRookBB & squareMask) != 0) return Piece.whiteRook;
+    if((whiteQueenBB & squareMask) != 0) return Piece.whiteQueen;
+    if((whiteKingBB & squareMask) != 0) return Piece.whiteKing;
+    if((blackPawnBB & squareMask) != 0) return Piece.blackPawn;
+    if((blackKnightBB & squareMask) != 0) return Piece.blackKnight;
+    if((blackBishopBB & squareMask) != 0) return Piece.blackBishop;
+    if((blackRookBB & squareMask) != 0) return Piece.blackRook;
+    if((blackQueenBB & squareMask) != 0) return Piece.blackQueen;
+    if((blackKingBB & squareMask) != 0) return Piece.blackKing;
 
     return null;
   }
@@ -887,10 +947,10 @@ Bitboard _computePawnAttack(int square, PieceColor color) {
     Piece rookPiece = getPieceAt(rookStart)!;
 
     // Move the rook on the bitboards
-    Bitboard rookBitboard = positions[rookPiece]!;
+    Bitboard rookBitboard = _PieceBitboards[rookPiece.listIndex];
     rookBitboard &= ~(1 << rookStart); // remove from start
     rookBitboard |= 1 << rookEnd;      // add to end
-    positions[rookPiece] = rookBitboard;
+    _PieceBitboards[rookPiece.listIndex] = rookBitboard;
   }
 
   List<Move> generateKingMoves(Piece piece, int index){
@@ -927,38 +987,38 @@ Bitboard _computePawnAttack(int square, PieceColor color) {
   /// Returns true if [square] is attacked by side [attackingColor].
   bool isSquareAttacked(int targetSquare, PieceColor attackingColor) {
     Bitboard occupied = 0;
-    for (final bitboard in positions.values){
+    for (final bitboard in _PieceBitboards){
       occupied |= bitboard;
     }
 
     // Pawns
     if (attackingColor == PieceColor.WHITE) {
-      if ((pawnAttacks[PieceColor.BLACK.index][targetSquare] & positions[Piece.whitePawn]!) != 0) return true;
+      if ((pawnAttacks[PieceColor.BLACK.index][targetSquare] & whitePawnBB) != 0) return true;
     } else {
-      if ((pawnAttacks[PieceColor.WHITE.index][targetSquare] & positions[Piece.blackPawn]!) != 0) return true;
+      if ((pawnAttacks[PieceColor.WHITE.index][targetSquare] & blackPawnBB) != 0) return true;
     }
 
     // Knights
     if ((knightAttacks[targetSquare] &
         (attackingColor == PieceColor.WHITE
-            ? positions[Piece.whiteKnight]!
-            : positions[Piece.blackKnight]!)) != 0) {
+            ? whiteKnightBB
+            : blackKnightBB)) != 0) {
       return true;
     }
 
     // Kings
     if ((kingAttacks[targetSquare] &
         (attackingColor == PieceColor.WHITE
-            ? positions[Piece.whiteKing]!
-            : positions[Piece.blackKing]!)) != 0){
+            ? whiteKingBB
+            : blackKingBB)) != 0){
       return true;
     }
 
     // Bishops / Queens (diagonals)
     Bitboard bishopLike = bishopAttacks(targetSquare, occupied) &
         ((attackingColor == PieceColor.WHITE
-            ? (positions[Piece.whiteBishop]! | positions[Piece.whiteQueen]!)
-            : (positions[Piece.blackBishop]! | positions[Piece.blackQueen]!)));
+            ? (whiteBishopBB | whiteQueenBB)
+            : (blackBishopBB | blackQueenBB)));
     if (bishopLike != 0){
       return true;
     } 
@@ -966,8 +1026,8 @@ Bitboard _computePawnAttack(int square, PieceColor color) {
     // Rooks / Queens (files + ranks)
     Bitboard rookLike = rookAttacks(targetSquare, occupied) &
         ((attackingColor == PieceColor.WHITE
-            ? (positions[Piece.whiteRook]! | positions[Piece.whiteQueen]!)
-            : (positions[Piece.blackRook]! | positions[Piece.blackQueen]!)));
+            ? (whiteRookBB | whiteQueenBB)
+            : (blackRookBB | blackQueenBB)));
     if (rookLike != 0){
        return true;
     }
@@ -981,14 +1041,11 @@ Bitboard _computePawnAttack(int square, PieceColor color) {
   }
 
   int findKingSquare(PieceColor color) {
-    for (int square = 0; square < 64; square++) {
-      final Piece? piece = getPieceAt(square);
-
-      if (piece != null && piece.color == color && piece.isKing) {
-        return square;
-      }
+    if(color == PieceColor.WHITE){
+      return trailingZeroCount_DeBruijn(whiteKingBB);
+    } else {
+      return trailingZeroCount_DeBruijn(blackKingBB);
     }
-    throw Exception('No king found for $color');
   }
 
   bool isCheckmate(PieceColor color) {
@@ -1043,104 +1100,6 @@ Bitboard _computePawnAttack(int square, PieceColor color) {
     }
   }
 
-  void updateAttacks(){
-    for(MapEntry entry in positions.entries){
-      updateAttack(entry.key);
-    }
-  }
-
-  void updateAttack(Piece changedPiece){
-    Bitboard bitboard = positions[changedPiece]!;
-    List<int> pieceIndexes = [];
-
-    List<int> attackIndexes = [];
-
-    for (int i = 0; i < 64; i++) {
-      if ((bitboard & (1 << i)) != 0) {
-        pieceIndexes.add(i);
-      }
-    }
-    
-    for(int index in pieceIndexes){
-      if(changedPiece.isBishop || changedPiece.isRook || changedPiece.isQueen){
-        int startDirIndex = changedPiece == Piece.blackBishop || changedPiece == Piece.whiteBishop ? 4 : 0;
-        int endDirIndex = changedPiece == Piece.blackRook || changedPiece == Piece.whiteRook ? 4 : 8;
-
-        for(int directionIndex = startDirIndex; directionIndex < endDirIndex; directionIndex++){
-          for(int n = 0; n < numSquaresToEdge[index][directionIndex]; n++){
-            int targetSquare = index + directionOffsets[directionIndex] * (n+1);
-
-            if(targetSquare < 0){
-              break;
-            }
-            
-            if(isSameColor(changedPiece, getPieceAt(targetSquare))){
-              break;
-            }
-
-            if(isOppositeColor(changedPiece, getPieceAt(targetSquare))){
-              attackIndexes.add(targetSquare);
-              break;
-            }
-
-            attackIndexes.add(targetSquare);
-          }
-        }    
-      } else if (changedPiece.isKnight){
-          for(int offset in knightOffsets){
-            int targetSquare = index + offset;
-            if(targetSquare < 0 || targetSquare > 63) continue;
-
-            // Check file wrapping
-            int fileDiff = (targetSquare % 8) - (index % 8);
-            if (fileDiff.abs() > 2) continue; // illegal wrap
-
-            if(isSameColor(changedPiece, getPieceAt(targetSquare))) continue;
-
-            attackIndexes.add(targetSquare);
-          }
-      } else if (changedPiece.isKing){
-          for(int offset in kingOffsets){
-            int targetSquare = index + offset;
-            if(targetSquare < 0 || targetSquare > 63) continue;
-
-            // Check file wrapping
-            int fileDiff = (targetSquare % 8) - (index % 8);
-            if (fileDiff.abs() > 2) continue; // illegal wrap
-
-            if(isSameColor(changedPiece, getPieceAt(targetSquare))) continue;
-
-            attackIndexes.add(targetSquare);
-          }
-      } else if (changedPiece.isPawn){
-          int rank = index ~/ 8;
-          int file = index % 8;
-
-          int forward = changedPiece.color == PieceColor.WHITE ? 1 : -1;
-
-          // left capture
-          if (file > 0) {
-            int targetSquare = (rank + forward) * 8 + (file - 1);
-            attackIndexes.add(targetSquare);
-          }
-
-          // right capture
-          if (file < 7) {
-            int targetSquare = (rank + forward) * 8 + (file + 1);
-            attackIndexes.add(targetSquare);
-          }
-      }
-    }
-
-    attacks[changedPiece] = listToBitboard(attackIndexes);
-  }
-
-  void generateAllAttacks(){
-    for(MapEntry entry in positions.entries){
-      updateAttack(entry.key);
-    }
-  }
-
   Bitboard listToBitboard(List<int> squares) {
     Bitboard bitboard = 0;
     for (final square in squares) {
@@ -1148,23 +1107,20 @@ Bitboard _computePawnAttack(int square, PieceColor color) {
     }
     return bitboard;
   }
-
-  void printAttackBoards(){
-    for(MapEntry entry in attacks.entries){
-      print("Piece: ${entry.key}");
-
-      printSingleBitBoard(entry.value);
-    }
-  }
   
+  List<Move> generateAllMovesForCurrentColor(){
+    return generateAllMovesForColor(turn);
+  }
+
   List<Move> generateAllMovesForColor(PieceColor color) {
     final List<Move> allMoves = [];
 
-    for (final entry in positions.entries) {
-      final Piece piece = entry.key;
-      if (piece.color != color) continue;
+    for (int i = 0; i < _PieceBitboards.length; i++) {
+      if (color == PieceColor.WHITE && i >= 6) continue;
+      if (color == PieceColor.BLACK && i <= 5) continue;
 
-      Bitboard bb = entry.value;
+
+      Bitboard bb = _PieceBitboards[i];
       while (bb != 0) {
         final int square = bitScanForward(bb);
         // clear the lowest set bit
@@ -1177,12 +1133,10 @@ Bitboard _computePawnAttack(int square, PieceColor color) {
     return allMoves;
   }
 
+  /// Returns the first position where there is a piece
+  /// Uses trainliingZeroCount_DeBruijn.
   int bitScanForward(Bitboard bb) {
-    if (bb == 0) return -1;
-    for (int i = 0; i < 64; i++) {
-      if ((bb & (1 << i)) != 0) return i;
-    }
-    throw Exception("returned -1"); // this should never happen;
+    return trailingZeroCount_DeBruijn(bb); // this should never happen;
   }
 
   int moveGenerationTest(int depth){
@@ -1190,7 +1144,7 @@ Bitboard _computePawnAttack(int square, PieceColor color) {
       return 1;
     }
 
-    List<Move> moves = generateAllMovesForColor(turn);
+    List<Move> moves = generateAllMovesForCurrentColor();
     int numPositions = 0;
 
     for(Move move in moves){
@@ -1328,8 +1282,8 @@ Bitboard _computePawnAttack(int square, PieceColor color) {
 
   void _parsePiecePlacement(String placement) {
     // Clear all bitboards
-    for (final piece in positions.keys) {
-      positions[piece] = 0;
+    for (int i =0; i < _PieceBitboards.length; i++) {
+      _PieceBitboards[i] = 0;
     }
 
     final ranks = placement.split('/');
@@ -1347,7 +1301,7 @@ Bitboard _computePawnAttack(int square, PieceColor color) {
         } else {
           final piece = Piece.fromChar(char);
           if (piece != null) {
-            positions[piece] = positions[piece]! | (1 << squareIndex);
+            _PieceBitboards[piece.listIndex] = _PieceBitboards[piece.listIndex] | (1 << squareIndex);
           }
           squareIndex++;
         }
@@ -1637,6 +1591,52 @@ void dividePerft(GameState game, int depth) {
   print('Total positions at depth $depth: $total');
 }
 
+void testCTZDebruijn(){
+  // Test with powers of two
+  for (int i = 0; i < 64; i++) {
+    final powerOfTwo = 1 << i;
+    final result = trailingZeroCount_DeBruijn(powerOfTwo);
+    // print('2^$i = $powerOfTwo -> $result trailing zeroes');
+    print('2^$i -> $result trailing zeroes');
+    print(result == i);
+  }
+}
+
+void bulkPerft(GameState game){
+  print("Starting Bulk Perft");
+  final stopwatch = Stopwatch()..start();
+
+  final count = bulkCountPerft(game, 6);
+  stopwatch.stop();
+
+  final seconds = stopwatch.elapsedMilliseconds / 1000.0;
+  print("Depth 6:");
+  print("  Moves: $count");
+  print("  Time:  ${seconds.toStringAsFixed(3)} s");
+  print("  Speed: ${(count / seconds).toStringAsFixed(0)} nodes/s\n");
+}
+
+int bulkCountPerft(GameState game, int depth){
+  List<Move> move_list;
+  int n_moves;
+
+  int nodes = 0;
+
+  move_list = game.generateAllMovesForCurrentColor();
+  n_moves = move_list.length;
+
+  if(depth == 1){
+    return n_moves;
+  }
+
+  for(int i = 0; i< n_moves; i++){
+    game.makeMove(move_list[i]);
+    nodes += bulkCountPerft(game, depth-1);
+    game.unmakeMove();
+  }
+
+  return nodes;
+}
 
 void main(){
     GameState game = GameState();
@@ -1654,7 +1654,10 @@ void main(){
     print(game.getFen());
 
     //dividePerft(game, 4);
-    perftTest(game);
+    //perftTest(game);
+    bulkPerft(game);
+
+    //testCTZDebruijn();
 
     print("Finished");
   }
