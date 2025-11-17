@@ -1,3 +1,13 @@
 {
-    "cmake.sourceDirectory": "/Users/justin/VSCODE PROJECTS/chess_ui/linux"
+    "cmake.sourceDirectory": "/Users/justin/VSCODE PROJECTS/chess_ui/native",
+    "C_Cpp.errorSquiggles": "enabled",
+    "files.associations": {
+        "__hash_table": "cpp",
+        "__tree": "cpp",
+        "map": "cpp",
+        "set": "cpp",
+        "string": "cpp",
+        "string_view": "cpp",
+        "unordered_map": "cpp"
+    },
 }

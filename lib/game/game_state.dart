@@ -247,7 +247,6 @@ class GameState {
           0x8100000000000000,
           0x0800000000000000,
           0x1000000000000000
-
         ];
       
       initAttackTables();
@@ -1292,6 +1291,7 @@ Bitboard _computePawnAttack(int square, PieceColor color) {
     }
 
     int squareIndex = 56; // a8 (top-left), descending down to a1
+    
 
     for (final rank in ranks) {
       for (final char in rank.split('')) {
@@ -1647,7 +1647,7 @@ void main(){
 
     game.printBoard();
 
-    //game.setBoardToFen("r4rk1/1pp1qppp/p1np1n2/2b1p1B1/2B1P1b1/P1NP1N2/1PP1QPPP/R4RK1 w - - 0 10");
+    game.setBoardToFen("rnbqkbnr/pp1ppppp/8/2p5/4P3/5N2/PPPP1PPP/RNBQKB1R b KQkq - 1 2");
 
     game.printBoard();
 
@@ -1655,7 +1655,7 @@ void main(){
 
     //dividePerft(game, 4);
     //perftTest(game);
-    bulkPerft(game);
+    //bulkPerft(game);
 
     //testCTZDebruijn();
 
