@@ -2,28 +2,35 @@
 #include "../include/utils.h"
 #include <regex>
 #include <iostream>
+#include "board.h"
 
 Board::Board() {
     sideToMove = Color::WHITE;
     castlingRightsState = static_cast<u_int8_t>(CastlingRights::ALL);
+    enPassantSquare = std::nullopt;
+    half_move_clock = 0;
+    num_moves_total = 0;
 
-    bitboard_array = new uint64_t[12];
-
-    bitboard_array[W_PAWN] = 0x000000000000FF00;
-    bitboard_array[W_KNIGHT] = 0x0000000000000042;
-    bitboard_array[W_BISHOP] = 0x0000000000000024;
-    bitboard_array[W_ROOK] = 0x0000000000000081;
-    bitboard_array[W_QUEEN] = 0x0000000000000008;
-    bitboard_array[W_KING] = 0x0000000000000010;
-    bitboard_array[B_PAWN] = 0x00FF000000000000;
-    bitboard_array[B_KNIGHT] = 0x4200000000000000;
-    bitboard_array[B_BISHOP] = 0x2400000000000000;
-    bitboard_array[B_ROOK] = 0x8100000000000000;
-    bitboard_array[B_QUEEN] = 0x0800000000000000;
-    bitboard_array[B_KING] = 0x1000000000000000;
+    bitboard_array = {
+        0x000000000000FF00,
+        0x0000000000000042,
+        0x0000000000000024,
+        0x0000000000000081,
+        0x0000000000000008,
+        0x0000000000000010,
+        0x00FF000000000000,
+        0x4200000000000000,
+        0x2400000000000000,
+        0x8100000000000000,
+        0x0800000000000000,
+        0x1000000000000000
+    };
 }
 
-void Board::set_position_fen(const std::string &fen) {
+Board::~Board(){}
+
+void Board::set_position_fen(const std::string &fen)
+{
     const auto parts = splitString(fen, ' ');
 
     if(parts.size() != 6){
@@ -88,7 +95,7 @@ void Board::print_board(std::ostream& os) const {
             int square = rank * 8 + file;
             std::string s = ".";
             for(int i = 0; i < 12; i++){
-                Bitboard& board = bitboard_array[i];
+                Bitboard board = bitboard_array[i];
                 Bitboard mask = 1ULL << square; //specify 64 bit int
                 bool hasPiece = (board & mask) != 0;
 
@@ -106,15 +113,15 @@ void Board::print_board(std::ostream& os) const {
 }
 
 void Board::remove_castling_right(CastlingRights right) {
-
+    castlingRightsState &= ~static_cast<uint8_t>(right);
 }
 
 void Board::remove_all_castling_rights_white() {
-
+    remove_castling_right(CastlingRights::WHITE_ALL);
 }
 
-void Board::remove_all_castling_rights_black()
-{
+void Board::remove_all_castling_rights_black(){
+    remove_castling_right(CastlingRights::BLACK_ALL);
 }
 
 void Board::parse_piece_placement(const std::string& positions) {

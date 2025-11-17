@@ -2,8 +2,11 @@
 #include <cstdint>
 #include <string>
 #include <optional>
+#include <array>
 
 typedef uint64_t Bitboard;
+
+class BoardTestFixture;
 
 enum class PieceType : uint8_t {
     NONE, //0
@@ -79,6 +82,8 @@ struct Move {
 };
 
 class Board {
+    friend class BoardTestFixture;
+
     public:
         //Constants for squares for readability
         enum Squares {
@@ -100,6 +105,8 @@ class Board {
 
         Board();
 
+        ~Board();
+
         Bitboard get_piece_bitboard(Piece piece) const;
         void set_position_fen(const std::string& fen);
         void make_move(Move& move);
@@ -110,11 +117,7 @@ class Board {
         void print_board(std::ostream& os) const;
 
     private:
-        uint64_t* bitboard_array;
-
-        Bitboard white_pieces;
-        Bitboard black_pieces;
-        Bitboard all_pieces;
+        std::array<uint64_t, 12> bitboard_array;
 
         //Castling stuff
         void remove_castling_right(CastlingRights right);
