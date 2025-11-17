@@ -73,12 +73,21 @@ constexpr CastlingRights operator&(CastlingRights a, CastlingRights b){
 
 //TODO: Consider switching to a uint16_t like in the dart implementation, but get this working first
 struct Move {
+    uint8_t piece;
     uint8_t from_square;
     uint8_t to_square;
-    PieceType captured_piece_type;
-    PieceType promoted_piece_type;
+    Piece captured_piece;
+    Piece promoted_piece;
     bool is_enpassant;
     bool is_castling;
+};
+
+struct Move_State {
+    Move move;
+    std::optional<uint8_t> captured_piece;
+    std::optional<int> enPassantSquare;
+    uint8_t castling_rights;
+    bool wasPromotion; 
 };
 
 class Board {
@@ -119,12 +128,15 @@ class Board {
     private:
         std::array<uint64_t, 12> bitboard_array;
 
+        std::stack<Move_State> move_history; 
+
         //Castling stuff
         void remove_castling_right(CastlingRights right);
         void remove_all_castling_rights_white();
         void remove_all_castling_rights_black();
 
         void parse_piece_placement(const std::string& positions);
+        void set_castling_rights(u_int8_t& newCastlingRights);
 
 
 };

@@ -71,13 +71,142 @@ void Board::set_position_fen(const std::string &fen)
     this->num_moves_total = std::stoi(num_moves_total);
 }
 
-void Board::make_move(Move &move)
-{
+//We assume a move passed into here is valid
+void Board::make_move(Move &move) {
+    Bitboard bitboard = bitboard_array[move.piece];
+    
+    move_history.emplace(Move_State{
+        move,
+        move.captured_piece,
+        enPassantSquare,
+        castlingRightsState,
+        move.promoted_piece != Piece::NONE
+    });
 
+    if(move.is_enpassant && move.captured_piece != Piece::NONE){
+        int captured_pawn_square = (move.piece == Piece::W_PAWN)
+            ? move.to_square - 8
+            : move.to_square + 8;
+        
+        //remove captured piece
+    } else if (move.captured_piece) {
+        //remove captured piece
+    }
+
+    //En Passant updates
+    if(move.piece == Piece::W_PAWN && (move.from_square / 8 == 1) && (move.to_square / 8 == 3)){
+        enPassantSquare = move.to_square + 8;
+    } else if (move.piece == Piece::B_PAWN && (move.from_square / 8 == 6) && (move.to_square / 8 == 4)){
+        enPassantSquare = move.to_square - 8;
+    } else {
+        enPassantSquare = std::nullopt;
+    }
+
+    //Castling Rights updates
+    if(move.piece == W_KING){
+        remove_all_castling_rights_white();
+    } else if (move.piece == B_KING) {
+        remove_all_castling_rights_black();
+    } else if(move.piece == W_ROOK && move.from_square == 0){
+        remove_castling_right(CastlingRights::WHITE_QUEENSIDE);
+    }
+    else if(move.piece == W_ROOK && move.from_square == 7){
+        remove_castling_right(CastlingRights::WHITE_KINGSIDE);
+    }
+    else if(move.piece == B_ROOK && move.from_square == 56){
+        remove_castling_right(CastlingRights::BLACK_QUEENSIDE);
+    }
+    else if(move.piece == B_ROOK && move.from_square == 63){
+        remove_castling_right(CastlingRights::BLACK_KINGSIDE);
+    }
+
+    //Castling
+    if(move.is_castling){
+        //Castle Helper Function
+    }
+
+    //Regular Logic & Promotion
+
+    Bitboard startMask = 1ULL << move.from_square;
+    Bitboard newBitboard = bitboard & (~startMask);
+
+    Bitboard endMask = 1ULL << move.to_square;
+
+    //Promotion
+    if(move.promoted_piece != Piece::NONE){
+        // Remove pawn from its bitboard (already done in newBitboard)
+      bitboard_array[move.piece] = newBitboard; // update pawn board
+
+      // Add the promoted piece to its bitboard
+      Bitboard promoBitboard = bitboard_array[move.promoted_piece]; //We know its not none
+      bitboard_array[move.promoted_piece] = promoBitboard | endMask;
+    } else { //Normal Logic
+        newBitboard = newBitboard | endMask;
+        bitboard_array[move.piece] = newBitboard;
+    }
+    
+    //Switch turn
+    sideToMove = sideToMove == Color::WHITE ? Color::BLACK : Color::WHITE;
 }
 
-void Board::undo_move(Move &move)
-{
+void Board::undo_move(Move &move) {
+    Move_State last = move_history.top();
+    move_history.pop();
+
+    Move& move = last.move;
+
+    //Revert side
+    sideToMove = sideToMove == Color::WHITE ? Color::BLACK : Color::WHITE;
+
+    //Restore Flags
+    enPassantSquare = last.enPassantSquare;
+    castlingRightsState = last.castling_rights;
+
+    //Undo Piece Movement
+    bitboard_array[move.piece] &= ~(1ULL << move.to_square);
+    bitboard_array[move.piece] |= 1ULL << move.from_square;
+
+    //Restore capture
+    if(last.captured_piece.has_value()){
+        bitboard_array[last.captured_piece.value()] |= (1ULL << move.to_square);
+    }
+
+    //Undo special moves (castle, en passant, etc.)
+    if(move.is_castling){
+        if (move.to_square - move.from_square == 2) {
+        // kingside
+        int rookStart = colorOf(static_cast<Piece>(move.piece)) == Color::WHITE ? 7 : 63;
+        int rookEnd = colorOf(static_cast<Piece>(move.piece)) == Color::WHITE  ? 5 : 61;
+        
+        //undoRookForCastle(movePiece(move).color, rookStart, rookEnd);
+      } else if (move.to_square - move.from_square == -2) {
+        // queenside
+        int rookStart = colorOf(static_cast<Piece>(move.piece)) == Color::WHITE ? 0 : 56;
+        int rookEnd = colorOf(static_cast<Piece>(move.piece)) == Color::WHITE ? 3 : 59;
+
+        //undoRookForCastle(movePiece(move).color, rookStart, rookEnd);
+      }
+    }
+
+    // Undo en passant
+    if (move.is_enpassant && move.captured_piece != Piece::NONE) {
+        int capturedPawnSquare = colorOf(static_cast<Piece>(move.piece)) == Color::WHITE
+            ? move.from_square - 8
+            : move.to_square + 8;
+        Piece capturedPawn = colorOf(static_cast<Piece>(move.piece)) == Color::WHITE
+            ? Piece::B_PAWN
+            : Piece::W_PAWN;
+        bitboard_array[move.captured_piece] |= (1ULL << capturedPawnSquare);
+    }
+
+    //undo promotion
+    if (move.promoted_piece != Piece::NONE) {
+      // Remove the promoted piece from the board
+      bitboard_array[move.promoted_piece] &= ~(1ULL << move.to_square);
+
+      // Restore the pawn on its starting square
+      bitboard_array[move.piece] |= (1ULL << move.from_square);
+    }
 }
 
 bool Board::is_in_check() {
@@ -124,6 +253,7 @@ void Board::remove_all_castling_rights_black(){
     remove_castling_right(CastlingRights::BLACK_ALL);
 }
 
+
 void Board::parse_piece_placement(const std::string& positions) {
     //Clear all bitboards
     for(int i = 0; i < 12; i++){
@@ -156,3 +286,6 @@ void Board::parse_piece_placement(const std::string& positions) {
     }
 }
 
+void Board::set_castling_rights(u_int8_t& newCastlingRights){
+    this->castlingRightsState = newCastlingRights;
+}
