@@ -3,6 +3,7 @@
 #include <string>
 #include <optional>
 #include <array>
+#include <stack>
 
 typedef uint64_t Bitboard;
 
@@ -119,7 +120,7 @@ class Board {
         Bitboard get_piece_bitboard(Piece piece) const;
         void set_position_fen(const std::string& fen);
         void make_move(Move& move);
-        void undo_move(Move& move);
+        void undo_move();
         bool is_in_check();
         bool can_castle(CastlingRights right);
 
@@ -136,7 +137,10 @@ class Board {
         void remove_all_castling_rights_black();
 
         void parse_piece_placement(const std::string& positions);
-        void set_castling_rights(u_int8_t& newCastlingRights);
+        void set_castling_rights(uint8_t&newCastlingRights);
+        void undo_rook_castle(Color color, int start, int end);
+        void remove_captured_piece(int square);
+
 
 
 };

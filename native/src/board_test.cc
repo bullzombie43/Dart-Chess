@@ -86,13 +86,56 @@ R N B Q K B N R
     EXPECT_EQ(board.C6, board.enPassantSquare);  
 }
 
-// TEST_F(BoardTestFixture, CastlingRights){
-//     board = Board();
+TEST_F(BoardTestFixture, CastlingRights){
+    board = Board();
 
-//     EXPECT_EQ(true, board.can_castle(CastlingRights::ALL));
+    EXPECT_EQ(true, board.can_castle(CastlingRights::ALL));
 
-//     call_remove_castling_right(CastlingRights::WHITE_KINGSIDE);
-//     EXPECT_EQ(false, board.can_castle(CastlingRights::WHITE_KINGSIDE));
+    call_remove_castling_right(CastlingRights::WHITE_KINGSIDE);
+    EXPECT_EQ(false, board.can_castle(CastlingRights::WHITE_KINGSIDE));
+}
 
-// }
+TEST_F(BoardTestFixture, MakeMoveUnmakeMove){
+    board = Board();
+    std::ostringstream oss;
+
+    Move pawnC2C4 = {Piece::W_PAWN, 10, 26, Piece::NONE, Piece::NONE, false, false};    
+    board.make_move(pawnC2C4);
+    board.print_board(oss);
+
+    EXPECT_EQ(R"(r n b q k b n r 
+p p p p p p p p 
+. . . . . . . . 
+. . . . . . . . 
+. . P . . . . . 
+. . . . . . . . 
+P P . P P P P P 
+R N B Q K B N R 
+)",
+        oss.str()
+    );
+
+    //Reverse C2C4
+    board.undo_move();
+
+    oss.str("");
+    oss.clear();
+
+    board.print_board(oss);
+    EXPECT_EQ(R"(r n b q k b n r 
+p p p p p p p p 
+. . . . . . . . 
+. . . . . . . . 
+. . . . . . . . 
+. . . . . . . . 
+P P P P P P P P 
+R N B Q K B N R 
+)",
+        oss.str()
+    );
+
+
+
+
+}
 

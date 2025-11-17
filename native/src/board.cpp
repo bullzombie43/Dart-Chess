@@ -88,9 +88,9 @@ void Board::make_move(Move &move) {
             ? move.to_square - 8
             : move.to_square + 8;
         
-        //remove captured piece
+        remove_captured_piece(captured_pawn_square);
     } else if (move.captured_piece) {
-        //remove captured piece
+        remove_captured_piece(move.to_square);
     }
 
     //En Passant updates
@@ -149,11 +149,15 @@ void Board::make_move(Move &move) {
     sideToMove = sideToMove == Color::WHITE ? Color::BLACK : Color::WHITE;
 }
 
-void Board::undo_move(Move &move) {
+void Board::undo_move() {
+    if(move_history.empty()){
+        throw std::invalid_argument("Tried to invoke undo_move when move_history was empty");
+    }
+
     Move_State last = move_history.top();
     move_history.pop();
 
-    Move& move = last.move;
+    Move move = last.move;
 
     //Revert side
     sideToMove = sideToMove == Color::WHITE ? Color::BLACK : Color::WHITE;
@@ -178,13 +182,13 @@ void Board::undo_move(Move &move) {
         int rookStart = colorOf(static_cast<Piece>(move.piece)) == Color::WHITE ? 7 : 63;
         int rookEnd = colorOf(static_cast<Piece>(move.piece)) == Color::WHITE  ? 5 : 61;
         
-        //undoRookForCastle(movePiece(move).color, rookStart, rookEnd);
+        undo_rook_castle(colorOf(static_cast<Piece>(move.piece)), rookStart, rookEnd);
       } else if (move.to_square - move.from_square == -2) {
         // queenside
         int rookStart = colorOf(static_cast<Piece>(move.piece)) == Color::WHITE ? 0 : 56;
         int rookEnd = colorOf(static_cast<Piece>(move.piece)) == Color::WHITE ? 3 : 59;
 
-        //undoRookForCastle(movePiece(move).color, rookStart, rookEnd);
+        undo_rook_castle(colorOf(static_cast<Piece>(move.piece)), rookStart, rookEnd);
       }
     }
 
@@ -253,7 +257,6 @@ void Board::remove_all_castling_rights_black(){
     remove_castling_right(CastlingRights::BLACK_ALL);
 }
 
-
 void Board::parse_piece_placement(const std::string& positions) {
     //Clear all bitboards
     for(int i = 0; i < 12; i++){
@@ -286,6 +289,30 @@ void Board::parse_piece_placement(const std::string& positions) {
     }
 }
 
-void Board::set_castling_rights(u_int8_t& newCastlingRights){
+void Board::set_castling_rights(uint8_t& newCastlingRights){
     this->castlingRightsState = newCastlingRights;
+}
+
+void Board::undo_rook_castle(Color color, int start, int end) {
+    if(color == Color::WHITE){
+        bitboard_array[W_ROOK] &= ~(1ULL << end);
+        bitboard_array[W_ROOK] |= (1ULL << start);
+    } else {
+        bitboard_array[B_ROOK] &= ~(1ULL << end);
+        bitboard_array[B_ROOK] |= (1ULL << start);
+    }
+
+}
+
+void Board::remove_captured_piece(int square)
+{
+    for(int i = 0; i<12; i++){
+        if((bitboard_array[i] & (1ULL << square)) != 0){
+            bitboard_array[i] &= ~(1ULL << square);
+            if(i == Piece::W_ROOK && square == 7) remove_castling_right(CastlingRights::WHITE_KINGSIDE);
+            if(i == Piece::W_ROOK && square == 0) remove_castling_right(CastlingRights::WHITE_QUEENSIDE);
+            if(i == Piece::B_ROOK && square == 56) remove_castling_right(CastlingRights::BLACK_QUEENSIDE);
+            if(i == Piece::B_ROOK && square == 63) remove_castling_right(CastlingRights::BLACK_KINGSIDE);
+        }
+    }
 }
