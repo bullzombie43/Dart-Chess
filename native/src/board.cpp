@@ -27,6 +27,11 @@ Board::Board() {
     };
 }
 
+Bitboard Board::get_piece_bitboard(Piece piece) const
+{
+    return bitboard_array[piece];
+}
+
 void Board::set_position_fen(const std::string &fen)
 {
     const auto parts = splitString(fen, ' ');
@@ -211,8 +216,9 @@ void Board::undo_move() {
     }
 }
 
-bool Board::is_in_check(Color attacking_color) {
-    return false;
+bool Board::is_in_check(Color color) {
+    int kingSquare = get_king_square(color);
+    return is_square_attacked(kingSquare, color == Color::WHITE ? Color::BLACK : Color::WHITE);
 }
 
 bool Board::can_castle(CastlingRights right) {
@@ -346,7 +352,7 @@ bool Board::is_square_attacked(int target, Color attacking_color)
     }
 
     // Knights
-    if ((knight_attacks[target] &
+    if ((knight_moves[target] &
         (attacking_color == Color::WHITE
             ? bitboard_array[W_KNIGHT]
             : bitboard_array[B_KNIGHT])) != 0) {
@@ -354,7 +360,7 @@ bool Board::is_square_attacked(int target, Color attacking_color)
     }
 
     // Kings
-    if ((king_attacks[target] &
+    if ((king_moves[target] &
         (attacking_color == Color::WHITE
             ? bitboard_array[W_KING]
             : bitboard_array[B_KING])) != 0){
@@ -386,5 +392,9 @@ bool Board::is_square_attacked(int target, Color attacking_color)
 
 int Board::get_king_square(Color color)
 {
-    return 0;
+    if(color == Color::WHITE){
+      return std::countr_zero(bitboard_array[W_KING]);
+    } else {
+      return std::countr_zero(bitboard_array[B_KING]);
+    }
 }

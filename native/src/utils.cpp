@@ -112,7 +112,7 @@ Bitboard compute_pawn_attacks(int square, Color color)
     return static_cast<Bitboard>(attacks);
 }
 
-const std::array<Bitboard, 64> knight_attacks = []{
+const std::array<Bitboard, 64> knight_moves = []{
     std::array<Bitboard, 64> result;
     for(int i = 0; i < 64; i++){
         result[i] = compute_knight_attacks(i);
@@ -120,7 +120,7 @@ const std::array<Bitboard, 64> knight_attacks = []{
     return result;
 }();
 
-const std::array<Bitboard, 64> king_attacks = []{
+const std::array<Bitboard, 64> king_moves = []{
     std::array<Bitboard, 64> result;
     for(int i = 0; i < 64; i++){
         result[i] = compute_king_attacks(i);

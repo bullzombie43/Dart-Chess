@@ -117,7 +117,7 @@ class Board {
         void set_position_fen(const std::string& fen);
         void make_move(Move& move);
         void undo_move();
-        bool is_in_check(Color attacking_color);
+        bool is_in_check(Color color);
         bool can_castle(CastlingRights right);
 
         void print_board(std::ostream& os) const;

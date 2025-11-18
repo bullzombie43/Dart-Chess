@@ -16,8 +16,8 @@ extern const std::array<int, 2> pawn_attack_offsets;
 extern const std::array<int, 4> diagonal_offsets;
 extern const std::array<int, 4> rook_offsets;
 
-extern const std::array<Bitboard, 64> knight_attacks;
-extern const std::array<Bitboard, 64> king_attacks;
+extern const std::array<Bitboard, 64> knight_moves; //We call these moves instead of attacks 
+extern const std::array<Bitboard, 64> king_moves; //because they are used in move generation as well
 extern const std::array<Bitboard, 128> pawn_attacks;
 
 Bitboard compute_knight_attacks(int square);

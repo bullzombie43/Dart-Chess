@@ -387,3 +387,62 @@ TEST_F(BoardTestFixture, KingAttacksSquare) {
     // Far away square not attacked
     EXPECT_FALSE(call_is_square_attacked(36, Color::WHITE)); // e5
 }
+
+TEST_F(BoardTestFixture, WhiteKingInCheckByRook) {
+    board = Board();
+
+    // Black rook on e8, white king on e1
+    board.set_position_fen("1k2r3/8/8/8/8/8/8/4K3 w - - 0 1");
+
+    EXPECT_TRUE(board.is_in_check(Color::WHITE));
+    EXPECT_FALSE(board.is_in_check(Color::BLACK));
+}
+
+TEST_F(BoardTestFixture, WhiteKingNotInCheckBlockedRook) {
+    board = Board();
+
+    // Pawn at e2 blocks rook on e8 from checking e1
+    board.set_position_fen("4r3/8/8/8/8/8/4P3/4K3 w - - 0 1");
+
+    EXPECT_FALSE(board.is_in_check(Color::WHITE));
+}
+
+TEST_F(BoardTestFixture, BlackKingInCheckByKnight) {
+    board = Board();
+
+    // White knight on c7 attacks e8 (black king)
+    board.set_position_fen("4k3/2N5/8/8/8/8/8/K7 b - - 0 1");
+
+    EXPECT_TRUE(board.is_in_check(Color::BLACK));
+    EXPECT_FALSE(board.is_in_check(Color::WHITE));
+}
+
+TEST_F(BoardTestFixture, WhiteKingInCheckByBishop) {
+    board = Board();
+
+    // Bishop on b2 checks king on a1
+    board.set_position_fen("8/8/3k4/8/8/8/1b6/K7 w - - 0 1");
+
+    EXPECT_TRUE(board.is_in_check(Color::WHITE));
+}
+
+TEST_F(BoardTestFixture, WhiteKingInCheckByPawn) {
+    board = Board();
+
+    // Black pawn on d5 attacks e4 where king sits
+    board.set_position_fen("8/8/8/3p4/4K3/8/k7/8 w - - 0 1");
+
+    EXPECT_TRUE(board.is_in_check(Color::WHITE));
+}
+
+TEST_F(BoardTestFixture, KingsAdjacentBothInCheck) {
+    board = Board();
+
+    // Kings on d4 and e4 (illegal in real chess but good for testing)
+    board.set_position_fen("8/8/8/8/3Kk3/8/8/8 w - - 0 1");
+
+    EXPECT_TRUE(board.is_in_check(Color::WHITE));
+    EXPECT_TRUE(board.is_in_check(Color::BLACK));
+}
+
+
