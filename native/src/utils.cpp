@@ -20,6 +20,8 @@ const std::array<int, 2> pawn_attack_offsets = {-1, 1};
 const std::array<int, 4> diagonal_offsets = {9, 7, -9, -7};
 const std::array<int, 4> rook_offsets = {8, -8, 1, -1}; // up, down, right, left
 
+const std::array<int, 16> direction_offsets = {8,-8,-1,1,7,-7,9,-9, 6, 10, 15, 17, -6, -10, -15, -17}; 
+
 
 const Piece charToPiece[CHAR_MAP_SIZE] {
     ['P'] = W_PAWN,
@@ -134,6 +136,99 @@ const std::array<Bitboard, 128> pawn_attacks = []{
         result[i] = compute_pawn_attacks(i, Color::WHITE);
         result[i + 64] = compute_pawn_attacks(i, Color::BLACK);
     }
+    return result;
+}();
+
+const const std::array<std::array<int,8>, 64> num_squares_to_edge = []{
+    std::array<std::array<int,8>, 64> data;
+
+    for (int file = 0; file < 8; file++) {
+      for (int rank = 0; rank < 8; rank++) {
+        int squareIndex = rank * 8 + file;
+
+        int north = 7 - rank;
+        int south = rank;
+        int west = file;
+        int east = 7 - file;
+        int northWest = std::min(north, west);
+        int northEast = std::min(north, east);
+        int southWest = std::min(south, west);
+        int southEast = std::min(south, east);
+
+        data[squareIndex] = {
+          north,
+          south,
+          west,
+          east,
+          northWest,
+          southEast,
+          northEast,
+          southWest,
+        };
+      }
+    }
+    return data;
+}();
+
+
+const std::array<std::array<Bitboard, 4>, 64> rook_ray_masks = []{
+    std::array<std::array<Bitboard, 4>, 64> result;
+    for(int file = 0; file < 8; file++){
+        for(int rank = 0; rank < 8; rank++){
+            int squareIndex = rank * 8 + file;
+
+            int north = 7 - rank;
+            int south = rank;
+            int west = file;
+            int east = 7 - file;
+
+            // 0: North Ray Mask
+            result[squareIndex][0] = generate_ray_mask(squareIndex, north, 8); 
+
+            // 1: South Ray Mask
+            result[squareIndex][1] = generate_ray_mask(squareIndex, south, -8); 
+
+            // 2: East Ray Mask
+            result[squareIndex][2] = generate_ray_mask(squareIndex, east, 1);
+            
+            // 3: West Ray Mask
+            //Possible Error: Special handling for the West ray to avoid wrapping from A-file to H-file
+            result[squareIndex][3] = generate_ray_mask(squareIndex, west, -1);
+        }
+    }
+
+    return result;
+}();
+
+const std::array<std::array<Bitboard, 4>, 64> bishop_ray_masks = []{
+    std::array<std::array<Bitboard, 4>, 64> result;
+    for (int rank = 0; rank < 8; rank++) {
+        for (int file = 0; file < 8; file++) {
+            int squareIndex = rank * 8 + file;
+
+            int north = 7 - rank;
+            int south = rank;
+            int west = file;
+            int east = 7 - file;
+            
+            // 0: Northeast (NE)
+            int dist_ne = std::min(north, east);
+            result[squareIndex][0] = generate_ray_mask(squareIndex, 9, dist_ne); 
+
+            // 1: Northwest (NW)
+            int dist_nw = std::min(north, west);
+            result[squareIndex][1] = generate_ray_mask(squareIndex, 7, dist_nw); 
+
+            // 2: Southeast (SE)
+            int dist_se = std::min(south, east);
+            result[squareIndex][2] = generate_ray_mask(squareIndex, -7, dist_se);
+            
+            // 3: Southwest (SW)
+            int dist_sw = std::min(south, west);
+            result[squareIndex][3] = generate_ray_mask(squareIndex, -9, dist_sw);
+        }
+    }
+
     return result;
 }();
 

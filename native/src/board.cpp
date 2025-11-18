@@ -10,6 +10,7 @@ Board::Board() {
     enPassantSquare = std::nullopt;
     half_move_clock = 0;
     num_moves_total = 0;
+    color_can_en_passant = Color::NONE;
 
     bitboard_array = {
         0x000000000000FF00,
@@ -25,11 +26,18 @@ Board::Board() {
         0x0800000000000000,
         0x1000000000000000
     };
+
+    update_color_bitboard();
 }
 
 Bitboard Board::get_piece_bitboard(Piece piece) const
 {
     return bitboard_array[piece];
+}
+
+Bitboard Board::get_piece_bitboard(PieceType type, Color color) const
+{
+    return bitboard_array[((int) type) + (color == Color::WHITE ? 0 : 1)];
 }
 
 void Board::set_position_fen(const std::string &fen)
@@ -99,10 +107,13 @@ void Board::make_move(Move& move) {
     //En Passant updates
     if(move.piece == Piece::W_PAWN && (move.from_square / 8 == 1) && (move.to_square / 8 == 3)){
         enPassantSquare = move.from_square + 8;
+        color_can_en_passant = Color::BLACK;
     } else if (move.piece == Piece::B_PAWN && (move.from_square / 8 == 6) && (move.to_square / 8 == 4)){
         enPassantSquare = move.from_square - 8;
+        color_can_en_passant = Color::WHITE;
     } else {
         enPassantSquare = std::nullopt;
+        color_can_en_passant = Color::NONE;
     }
 
     //Castling Rights updates
@@ -150,6 +161,8 @@ void Board::make_move(Move& move) {
     
     //Switch turn
     sideToMove = sideToMove == Color::WHITE ? Color::BLACK : Color::WHITE;
+
+    update_color_bitboard();
 }
 
 void Board::undo_move() {
@@ -214,6 +227,8 @@ void Board::undo_move() {
       // Restore the pawn on its starting square
       bitboard_array[move.piece] |= (1ULL << move.from_square);
     }
+
+    update_color_bitboard();
 }
 
 bool Board::is_in_check(Color color) {
@@ -221,9 +236,53 @@ bool Board::is_in_check(Color color) {
     return is_square_attacked(kingSquare, color == Color::WHITE ? Color::BLACK : Color::WHITE);
 }
 
-bool Board::can_castle(CastlingRights right) {
+bool Board::can_castle(CastlingRights right) const {
     //if can castle 1 bit = 1, so non-zero = true, else all 0 = false
     return castlingRightsState & static_cast<uint8_t>(right); 
+}
+
+std::optional<Piece> Board::get_piece_at(int square) const
+{
+    if(square < 0 || square > 63) throw std::invalid_argument("Square must be between 0 and 63");
+
+    Bitboard squareMask = 1 << square;
+
+    if((bitboard_array[W_PAWN] & squareMask) != 0) return Piece::W_PAWN;
+    if((bitboard_array[W_KNIGHT] & squareMask) != 0) return Piece::W_KNIGHT;
+    if((bitboard_array[W_BISHOP] & squareMask) != 0) return Piece::W_BISHOP;
+    if((bitboard_array[W_ROOK] & squareMask) != 0) return Piece::W_BISHOP;
+    if((bitboard_array[W_QUEEN] & squareMask) != 0) return Piece::W_QUEEN;
+    if((bitboard_array[W_KING] & squareMask) != 0) return Piece::W_KING;
+    if((bitboard_array[B_PAWN] & squareMask) != 0) return Piece::B_PAWN;
+    if((bitboard_array[B_KNIGHT] & squareMask) != 0) return Piece::B_KNIGHT;
+    if((bitboard_array[B_BISHOP] & squareMask) != 0) return Piece::B_BISHOP;
+    if((bitboard_array[B_ROOK] & squareMask) != 0) return Piece::B_ROOK;
+    if((bitboard_array[B_QUEEN] & squareMask) != 0) return Piece::B_QUEEN;
+    if((bitboard_array[B_KING] & squareMask) != 0) return Piece::B_KING;
+
+    return std::nullopt;
+}
+
+Bitboard Board::get_active_color_bb() const
+{
+    if(sideToMove == Color::WHITE) 
+        return white_occupancy;
+    else
+        return black_occupancy;
+}
+
+Bitboard Board::get_empty_squares() const
+{
+    return ~(white_occupancy | black_occupancy);
+}
+
+void Board::update_color_bitboard()
+{
+    white_occupancy = bitboard_array[W_PAWN] | bitboard_array[W_KNIGHT] | bitboard_array[W_BISHOP] 
+    | bitboard_array[W_ROOK] | bitboard_array[W_QUEEN] | bitboard_array[W_KING];
+
+    black_occupancy =  bitboard_array[B_PAWN] | bitboard_array[B_KNIGHT] | bitboard_array[B_BISHOP] 
+    | bitboard_array[B_ROOK] | bitboard_array[B_QUEEN] | bitboard_array[B_KING];
 }
 
 void Board::print_board(std::ostream& os) const {
@@ -337,7 +396,7 @@ void Board::castle_move(Move &king_move)
     bitboard_array[rookPiece] |= (1ULL << rookEnd); //add to end
 }
 
-bool Board::is_square_attacked(int target, Color attacking_color)
+bool Board::is_square_attacked(int target, Color attacking_color) const
 {
     Bitboard occupied = 0;
     for(int i = 0; i < 12; i++){

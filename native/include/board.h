@@ -10,13 +10,12 @@ typedef uint64_t Bitboard;
 class BoardTestFixture;
 
 enum class PieceType : uint8_t {
-    NONE, //0
-    PAWN, //1
-    KNIGHT, //2
-    BISHOP, //3
-    ROOK, //4
-    QUEEN, //5
-    KING //6
+    PAWN, //0
+    KNIGHT, //1
+    BISHOP, //2
+    ROOK, //3
+    QUEEN, //4
+    KING //5
 };
 
 enum Piece : uint8_t{
@@ -111,14 +110,25 @@ class Board {
         int half_move_clock;
         int num_moves_total;
 
+        Bitboard white_occupancy;
+        Bitboard black_occupancy;
+
+        Color color_can_en_passant;
+
         Board();
 
         Bitboard get_piece_bitboard(Piece piece) const;
+        Bitboard get_piece_bitboard(PieceType type, Color color) const;
         void set_position_fen(const std::string& fen);
         void make_move(Move& move);
         void undo_move();
         bool is_in_check(Color color);
-        bool can_castle(CastlingRights right);
+        bool can_castle(CastlingRights right) const;
+        std::optional<Piece> get_piece_at(int square) const;
+        Bitboard get_active_color_bb() const;
+        Bitboard get_empty_squares() const;
+        bool is_square_attacked(int square, Color attacking_color) const;
+
 
         void print_board(std::ostream& os) const;
 
@@ -138,11 +148,16 @@ class Board {
         void remove_captured_piece(int square, Piece captured_piece);
         void castle_move(Move& king_move);
 
-        bool is_square_attacked(int square, Color attacking_color);
         int get_king_square(Color color);
+
+        void update_color_bitboard();
+
         
 };
 
 constexpr int squareIndexFromAlgebraicConst(const std::string notation) {
     return (notation[1] - '1') * 8 + (notation[0] - 'a');
 }
+
+constexpr Bitboard RANK3 = 0xFFULL << 16; // Value: 0x0000000000FF0000ULL
+constexpr Bitboard RANK7 = 0xFFULL << 48; // Value: 0x00FF000000000000ULL

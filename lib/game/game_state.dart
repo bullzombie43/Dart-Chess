@@ -966,6 +966,7 @@ Bitboard _computePawnAttack(int square, PieceColor color) {
       int fileDiff = (targetSquare % 8) - (index % 8);
       if (fileDiff.abs() > 2) continue; // illegal wrap
       
+      
       if(isSameColor(piece, getPieceAt(targetSquare))){
         continue;
       }
