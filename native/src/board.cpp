@@ -27,8 +27,6 @@ Board::Board() {
     };
 }
 
-Board::~Board(){}
-
 void Board::set_position_fen(const std::string &fen)
 {
     const auto parts = splitString(fen, ' ');
@@ -72,7 +70,7 @@ void Board::set_position_fen(const std::string &fen)
 }
 
 //We assume a move passed into here is valid
-void Board::make_move(Move &move) {
+void Board::make_move(Move& move) {
     Bitboard bitboard = bitboard_array[move.piece];
     
     move_history.emplace(Move_State{
@@ -88,16 +86,16 @@ void Board::make_move(Move &move) {
             ? move.to_square - 8
             : move.to_square + 8;
         
-        remove_captured_piece(captured_pawn_square);
-    } else if (move.captured_piece) {
-        remove_captured_piece(move.to_square);
+        remove_captured_piece(captured_pawn_square, move.captured_piece);
+    } else if (move.captured_piece != Piece::NONE) {
+        remove_captured_piece(move.to_square, move.captured_piece);
     }
 
     //En Passant updates
     if(move.piece == Piece::W_PAWN && (move.from_square / 8 == 1) && (move.to_square / 8 == 3)){
-        enPassantSquare = move.to_square + 8;
+        enPassantSquare = move.from_square + 8;
     } else if (move.piece == Piece::B_PAWN && (move.from_square / 8 == 6) && (move.to_square / 8 == 4)){
-        enPassantSquare = move.to_square - 8;
+        enPassantSquare = move.from_square - 8;
     } else {
         enPassantSquare = std::nullopt;
     }
@@ -171,7 +169,7 @@ void Board::undo_move() {
     bitboard_array[move.piece] |= 1ULL << move.from_square;
 
     //Restore capture
-    if(last.captured_piece.has_value()){
+    if(last.captured_piece != Piece::NONE){
         bitboard_array[last.captured_piece.value()] |= (1ULL << move.to_square);
     }
 
@@ -304,15 +302,15 @@ void Board::undo_rook_castle(Color color, int start, int end) {
 
 }
 
-void Board::remove_captured_piece(int square)
+void Board::remove_captured_piece(int square, Piece capturedPiece)
 {
-    for(int i = 0; i<12; i++){
-        if((bitboard_array[i] & (1ULL << square)) != 0){
-            bitboard_array[i] &= ~(1ULL << square);
-            if(i == Piece::W_ROOK && square == 7) remove_castling_right(CastlingRights::WHITE_KINGSIDE);
-            if(i == Piece::W_ROOK && square == 0) remove_castling_right(CastlingRights::WHITE_QUEENSIDE);
-            if(i == Piece::B_ROOK && square == 56) remove_castling_right(CastlingRights::BLACK_QUEENSIDE);
-            if(i == Piece::B_ROOK && square == 63) remove_castling_right(CastlingRights::BLACK_KINGSIDE);
-        }
+    if(capturedPiece == Piece::NONE){
+        throw std::invalid_argument("captured Piece cannot be none");
     }
+
+    bitboard_array[capturedPiece] &= ~(1ULL << square);
+    if(capturedPiece == Piece::W_ROOK && square == 7) remove_castling_right(CastlingRights::WHITE_KINGSIDE);
+    if(capturedPiece == Piece::W_ROOK && square == 0) remove_castling_right(CastlingRights::WHITE_QUEENSIDE);
+    if(capturedPiece == Piece::B_ROOK && square == 56) remove_castling_right(CastlingRights::BLACK_QUEENSIDE);
+    if(capturedPiece == Piece::B_ROOK && square == 63) remove_castling_right(CastlingRights::BLACK_KINGSIDE);
 }

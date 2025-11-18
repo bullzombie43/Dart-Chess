@@ -107,15 +107,13 @@ class Board {
             A8, B8, C8, D8, E8, F8, G8, H8 //63
         };
 
-        Color sideToMove;
+        Color sideToMove; 
         uint8_t castlingRightsState; //only really need 4 bits but whatever
         std::optional<int> enPassantSquare;
         int half_move_clock;
         int num_moves_total;
 
         Board();
-
-        ~Board();
 
         Bitboard get_piece_bitboard(Piece piece) const;
         void set_position_fen(const std::string& fen);
@@ -139,10 +137,7 @@ class Board {
         void parse_piece_placement(const std::string& positions);
         void set_castling_rights(uint8_t&newCastlingRights);
         void undo_rook_castle(Color color, int start, int end);
-        void remove_captured_piece(int square);
-
-
-
+        void remove_captured_piece(int square, Piece captured_piece);
 };
 
 constexpr int squareIndexFromAlgebraicConst(const std::string notation) {

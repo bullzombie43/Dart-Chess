@@ -1,0 +1,18 @@
+{
+    "configurations": [
+        {
+            "name": "(lldb) Launch Unit Tests",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/native/build/board_test",
+            "args": [],
+            "stopAtEntry": false,
+            "cwd": "${workspaceFolder}/native/build",
+            "preLaunchTask": "build_board_test",
+            "environment": [],
+            "externalConsole": false,
+            "MIMode": "lldb"
+        }
+    ],
+    "version": "2.0.0"
+}

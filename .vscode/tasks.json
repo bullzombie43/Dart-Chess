@@ -1,0 +1,26 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "build_board_test",
+            "type": "shell",
+            "command": "cmake --build .",
+            
+            // 🗺️ This tells the task where to run the command:
+            "options": {
+                "cwd": "${workspaceFolder}/native/build" 
+            },
+            
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            },
+            
+            // Highlight errors in VS Code
+            "problemMatcher": [
+                "$gcc" 
+            ],
+            "detail": "Runs 'cmake --build .' to compile the project"
+        }
+    ]
+}
