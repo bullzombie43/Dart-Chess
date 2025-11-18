@@ -32,11 +32,9 @@ enum Piece : uint8_t{
     B_ROOK,
     B_QUEEN,
     B_KING,
-    NONE , //12
 };
 
 inline PieceType typeOf(Piece p) {
-    if (p == Piece::NONE) return PieceType::NONE;
     return PieceType((p - 1) % 6 + 1);
 }
 
@@ -77,8 +75,8 @@ struct Move {
     uint8_t piece;
     uint8_t from_square;
     uint8_t to_square;
-    Piece captured_piece;
-    Piece promoted_piece;
+    std::optional<Piece> captured_piece;
+    std::optional<Piece> promoted_piece;
     bool is_enpassant;
     bool is_castling;
 };
@@ -119,7 +117,7 @@ class Board {
         void set_position_fen(const std::string& fen);
         void make_move(Move& move);
         void undo_move();
-        bool is_in_check();
+        bool is_in_check(Color attacking_color);
         bool can_castle(CastlingRights right);
 
         void print_board(std::ostream& os) const;
@@ -138,6 +136,11 @@ class Board {
         void set_castling_rights(uint8_t&newCastlingRights);
         void undo_rook_castle(Color color, int start, int end);
         void remove_captured_piece(int square, Piece captured_piece);
+        void castle_move(Move& king_move);
+
+        bool is_square_attacked(int square, Color attacking_color);
+        int get_king_square(Color color);
+        
 };
 
 constexpr int squareIndexFromAlgebraicConst(const std::string notation) {

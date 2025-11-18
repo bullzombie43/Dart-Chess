@@ -386,7 +386,7 @@ Bitboard queenAttacks(int square, Bitboard occupied) =>
 Bitboard _computePawnAttack(int square, PieceColor color) {
   final int rank = rankOf(square);
   final int file = fileOf(square);
-  Bitboard attacks = 0;
+  int attacks = 0;
 
   int forward = color == PieceColor.WHITE ? 1 : -1;
 

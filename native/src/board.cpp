@@ -78,17 +78,17 @@ void Board::make_move(Move& move) {
         move.captured_piece,
         enPassantSquare,
         castlingRightsState,
-        move.promoted_piece != Piece::NONE
+        move.promoted_piece.has_value()
     });
 
-    if(move.is_enpassant && move.captured_piece != Piece::NONE){
+    if(move.is_enpassant && move.captured_piece.has_value()){
         int captured_pawn_square = (move.piece == Piece::W_PAWN)
             ? move.to_square - 8
             : move.to_square + 8;
         
-        remove_captured_piece(captured_pawn_square, move.captured_piece);
-    } else if (move.captured_piece != Piece::NONE) {
-        remove_captured_piece(move.to_square, move.captured_piece);
+        remove_captured_piece(captured_pawn_square, move.captured_piece.value());
+    } else if (move.captured_piece.has_value()) {
+        remove_captured_piece(move.to_square, move.captured_piece.value());
     }
 
     //En Passant updates
@@ -120,7 +120,7 @@ void Board::make_move(Move& move) {
 
     //Castling
     if(move.is_castling){
-        //Castle Helper Function
+        castle_move(move);
     }
 
     //Regular Logic & Promotion
@@ -131,13 +131,13 @@ void Board::make_move(Move& move) {
     Bitboard endMask = 1ULL << move.to_square;
 
     //Promotion
-    if(move.promoted_piece != Piece::NONE){
+    if(move.promoted_piece.has_value()){
         // Remove pawn from its bitboard (already done in newBitboard)
       bitboard_array[move.piece] = newBitboard; // update pawn board
 
       // Add the promoted piece to its bitboard
-      Bitboard promoBitboard = bitboard_array[move.promoted_piece]; //We know its not none
-      bitboard_array[move.promoted_piece] = promoBitboard | endMask;
+      Bitboard promoBitboard = bitboard_array[move.promoted_piece.value()]; //We know its not none
+      bitboard_array[move.promoted_piece.value()] = promoBitboard | endMask;
     } else { //Normal Logic
         newBitboard = newBitboard | endMask;
         bitboard_array[move.piece] = newBitboard;
@@ -169,7 +169,7 @@ void Board::undo_move() {
     bitboard_array[move.piece] |= 1ULL << move.from_square;
 
     //Restore capture
-    if(last.captured_piece != Piece::NONE){
+    if(last.captured_piece.has_value()){
         bitboard_array[last.captured_piece.value()] |= (1ULL << move.to_square);
     }
 
@@ -191,27 +191,27 @@ void Board::undo_move() {
     }
 
     // Undo en passant
-    if (move.is_enpassant && move.captured_piece != Piece::NONE) {
+    if (move.is_enpassant && move.captured_piece.has_value()) {
         int capturedPawnSquare = colorOf(static_cast<Piece>(move.piece)) == Color::WHITE
             ? move.from_square - 8
             : move.to_square + 8;
         Piece capturedPawn = colorOf(static_cast<Piece>(move.piece)) == Color::WHITE
             ? Piece::B_PAWN
             : Piece::W_PAWN;
-        bitboard_array[move.captured_piece] |= (1ULL << capturedPawnSquare);
+        bitboard_array[move.captured_piece.value()] |= (1ULL << capturedPawnSquare);
     }
 
     //undo promotion
-    if (move.promoted_piece != Piece::NONE) {
+    if (move.promoted_piece.has_value()) {
       // Remove the promoted piece from the board
-      bitboard_array[move.promoted_piece] &= ~(1ULL << move.to_square);
+      bitboard_array[move.promoted_piece.value()] &= ~(1ULL << move.to_square);
 
       // Restore the pawn on its starting square
       bitboard_array[move.piece] |= (1ULL << move.from_square);
     }
 }
 
-bool Board::is_in_check() {
+bool Board::is_in_check(Color attacking_color) {
     return false;
 }
 
@@ -277,9 +277,7 @@ void Board::parse_piece_placement(const std::string& positions) {
                 squareIndex += c - '0';
             } else {
                 Piece piece = charToPiece[c];
-                if(piece != Piece::NONE){
-                    bitboard_array[piece] = bitboard_array[piece] | (1ULL << squareIndex);
-                }
+                bitboard_array[piece] = bitboard_array[piece] | (1ULL << squareIndex);
                 squareIndex++; //go to next A1->A2
             }
         }
@@ -299,18 +297,94 @@ void Board::undo_rook_castle(Color color, int start, int end) {
         bitboard_array[B_ROOK] &= ~(1ULL << end);
         bitboard_array[B_ROOK] |= (1ULL << start);
     }
-
 }
 
 void Board::remove_captured_piece(int square, Piece capturedPiece)
 {
-    if(capturedPiece == Piece::NONE){
-        throw std::invalid_argument("captured Piece cannot be none");
-    }
-
     bitboard_array[capturedPiece] &= ~(1ULL << square);
     if(capturedPiece == Piece::W_ROOK && square == 7) remove_castling_right(CastlingRights::WHITE_KINGSIDE);
     if(capturedPiece == Piece::W_ROOK && square == 0) remove_castling_right(CastlingRights::WHITE_QUEENSIDE);
     if(capturedPiece == Piece::B_ROOK && square == 56) remove_castling_right(CastlingRights::BLACK_QUEENSIDE);
     if(capturedPiece == Piece::B_ROOK && square == 63) remove_castling_right(CastlingRights::BLACK_KINGSIDE);
+}
+
+void Board::castle_move(Move &king_move)
+{
+    int rookStart, rookEnd;
+    if(king_move.to_square - king_move.from_square == 2){
+        //Kingside
+        rookStart = king_move.from_square + 3; // rook originally on h-file
+        rookEnd = king_move.from_square + 1;   // rook moves next to king
+    } else if (king_move.to_square - king_move.from_square == -2) {
+      // Queen-side castling
+      rookStart = king_move.from_square - 4; // rook originally on a-file
+      rookEnd = king_move.from_square - 1;   // rook moves next to king
+    } else {
+      throw std::invalid_argument("Invalid castling move");
+    }
+
+    // Determine which rook piece
+    Piece rookPiece = colorOf(static_cast<Piece>(king_move.piece)) == Color::WHITE ? Piece::W_ROOK : Piece::B_ROOK;
+
+    // Move the rook on the bitboard
+    bitboard_array[rookPiece] &= ~(1ULL << rookStart); //remove from start
+    bitboard_array[rookPiece] |= (1ULL << rookEnd); //add to end
+}
+
+bool Board::is_square_attacked(int target, Color attacking_color)
+{
+    Bitboard occupied = 0;
+    for(int i = 0; i < 12; i++){
+        occupied |= bitboard_array[i];
+    }
+
+    //Pawns
+    if(attacking_color == Color::WHITE){
+        if((pawn_attacks[target+64] & bitboard_array[W_PAWN]) != 0) return true;
+    } else {
+        if((pawn_attacks[target] & bitboard_array[B_PAWN]) != 0) return true;
+    }
+
+    // Knights
+    if ((knight_attacks[target] &
+        (attacking_color == Color::WHITE
+            ? bitboard_array[W_KNIGHT]
+            : bitboard_array[B_KNIGHT])) != 0) {
+      return true;
+    }
+
+    // Kings
+    if ((king_attacks[target] &
+        (attacking_color == Color::WHITE
+            ? bitboard_array[W_KING]
+            : bitboard_array[B_KING])) != 0){
+      return true;
+    }
+
+    // Bishops / Queens (diagonals)
+    Bitboard bishopLike = get_bishop_attacks(target, occupied) &
+        ((attacking_color == Color::WHITE
+            ? (bitboard_array[W_BISHOP] | bitboard_array[W_QUEEN])
+            : (bitboard_array[B_BISHOP] | bitboard_array[B_QUEEN])));
+
+    if (bishopLike != 0ULL){
+      return true;
+    } 
+
+    // Rooks / Queens (files + ranks)
+    Bitboard rookLike = get_rook_attacks(target, occupied) &
+        ((attacking_color == Color::WHITE
+            ? (bitboard_array[W_ROOK] | bitboard_array[W_QUEEN])
+            : (bitboard_array[B_ROOK] | bitboard_array[B_QUEEN])));
+
+    if (rookLike != 0ULL){
+       return true;
+    }
+
+    return false;
+}
+
+int Board::get_king_square(Color color)
+{
+    return 0;
 }

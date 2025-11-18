@@ -12,6 +12,15 @@ std::vector<std::string> splitString(const std::string& s, char delimiter) {
     return tokens;
 }
 
+int rankOf(int square){ return square / 8;}
+int fileOf(int square){ return square % 8;}
+
+const std::array<int, 8> knight_offsets = {17, 15, 10, 6, -17, -15, -10, -6}; 
+const std::array<int, 2> pawn_attack_offsets = {-1, 1}; 
+const std::array<int, 4> diagonal_offsets = {9, 7, -9, -7};
+const std::array<int, 4> rook_offsets = {8, -8, 1, -1}; // up, down, right, left
+
+
 const Piece charToPiece[CHAR_MAP_SIZE] {
     ['P'] = W_PAWN,
     ['N'] = W_KNIGHT,
@@ -41,3 +50,132 @@ const char pieceToChar[CHAR_MAP_SIZE] {
     [B_QUEEN] = 'q',
     [B_KING] = 'k'
 };
+
+Bitboard compute_knight_attacks(int square)
+{
+    int rank = rankOf(square);
+    int file = fileOf(square);
+    uint64_t attacks = 0ULL;
+
+    for (int j = 0; j < 8; j++) {
+        int attacked_square = square + knight_offsets[j];
+
+        // Quick board boundary check
+        if (attacked_square < 0 || attacked_square >= 64) continue;
+
+        int targetRank = rankOf(attacked_square);
+        int targetFile = fileOf(attacked_square);
+
+        // Make sure knight move doesn’t wrap around the board
+        if (std::abs(targetRank - rank) > 2 || std::abs(targetFile - file) > 2) continue;
+
+        attacks |= (1ULL << attacked_square);
+    }
+
+    return static_cast<Bitboard>(attacks);
+}
+
+Bitboard compute_king_attacks(int square){
+    int rank = rankOf(square);
+    int file = fileOf(square);
+    uint64_t attacks = 0ULL;
+
+    for (int dr = -1; dr <= 1; dr++) {
+        for (int df = -1; df <= 1; df++) {
+            if (dr == 0 && df == 0) continue;
+            int r = rank + dr;
+            int f = file + df;
+            if (r >= 0 && r < 8 && f >= 0 && f < 8) {
+                attacks |= (1ULL << (r * 8 + f));
+            }
+        }
+    }
+    return static_cast<Bitboard>(attacks);
+}
+
+Bitboard compute_pawn_attacks(int square, Color color)
+{
+    int rank = rankOf(square);
+    int file = fileOf(square);
+    uint64_t attacks = 0ULL;
+
+    int forward = color == Color::WHITE ? 1 : -1;
+
+    for (int df : pawn_attack_offsets) {
+        int r = rank + forward;
+        int f = file + df;
+        if (r >= 0 && r < 8 && f >= 0 && f < 8) {
+            attacks |= (1ULL << (r * 8 + f));
+        }
+    }
+
+    return static_cast<Bitboard>(attacks);
+}
+
+const std::array<Bitboard, 64> knight_attacks = []{
+    std::array<Bitboard, 64> result;
+    for(int i = 0; i < 64; i++){
+        result[i] = compute_knight_attacks(i);
+    }
+    return result;
+}();
+
+const std::array<Bitboard, 64> king_attacks = []{
+    std::array<Bitboard, 64> result;
+    for(int i = 0; i < 64; i++){
+        result[i] = compute_king_attacks(i);
+    }
+    return result;
+}();
+
+const std::array<Bitboard, 128> pawn_attacks = []{
+    std::array<Bitboard, 128> result;
+    for(int i = 0; i < 64; i++){
+        result[i] = compute_pawn_attacks(i, Color::WHITE);
+        result[i + 64] = compute_pawn_attacks(i, Color::BLACK);
+    }
+    return result;
+}();
+
+Bitboard get_bishop_attacks(int square, Bitboard occupied){
+    uint64_t attacks = 0ULL;
+    
+
+    for (int dir : diagonal_offsets) {
+        int s = square;
+        while (true) {
+            s += dir;
+            if (s < 0 || s >= 64) break;
+            
+            if ((dir == 9 && fileOf(s) == 0) || (dir == -9 && fileOf(s) == 7) ||
+                (dir == 7 && fileOf(s) == 7) || (dir == -7 && fileOf(s) == 0)) break;
+
+            attacks |= (1ULL << s);
+            if ((occupied & (1ULL << s)) != 0) break;
+        }
+    }
+    return attacks;
+}
+
+Bitboard get_rook_attacks(int square, Bitboard occupied){
+    Bitboard attacks = 0;
+
+    for (int dir : rook_offsets) {
+        int s = square;
+        while (true) {
+            s += dir;
+            if (s < 0 || s >= 64) break;
+            // stop wrap-around (left/right edges)
+            if ((dir == 1 && fileOf(s) == 0) || (dir == -1 && fileOf(s) == 7)) break;
+
+            attacks |= (1ULL << s);
+            if ((occupied & (1ULL << s)) != 0) break; // blocked
+        }
+    }
+    return attacks;
+}
+
+Bitboard get_queen_attacks(int square, Bitboard occupied){
+    return get_bishop_attacks(square, occupied) | get_rook_attacks(square, occupied);
+}
+
