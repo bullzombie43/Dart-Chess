@@ -30,6 +30,7 @@
         src/main.cpp
         src/board.cpp
         src/utils.cpp
+        src/engine.cpp
     )
 
     #GTest Executable
@@ -44,6 +45,19 @@
 
     target_link_libraries(
         board_test
+        GTest::gtest_main
+    )
+
+    add_executable(
+        engine_test
+        src/engine_test.cc
+        src/board.cpp
+        src/utils.cpp
+        src/engine.cpp
+    )
+
+    target_link_libraries(
+        engine_test
         GTest::gtest_main
     )
 

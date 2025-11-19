@@ -243,14 +243,17 @@ bool Board::can_castle(CastlingRights right) const {
 
 std::optional<Piece> Board::get_piece_at(int square) const
 {
-    if(square < 0 || square > 63) throw std::invalid_argument("Square must be between 0 and 63");
+    if(square < 0 || square > 63){
+        throw std::invalid_argument("Square must be between 0 and 63");  
+    } 
+    
 
-    Bitboard squareMask = 1 << square;
+    Bitboard squareMask = 1ULL << square;
 
     if((bitboard_array[W_PAWN] & squareMask) != 0) return Piece::W_PAWN;
     if((bitboard_array[W_KNIGHT] & squareMask) != 0) return Piece::W_KNIGHT;
     if((bitboard_array[W_BISHOP] & squareMask) != 0) return Piece::W_BISHOP;
-    if((bitboard_array[W_ROOK] & squareMask) != 0) return Piece::W_BISHOP;
+    if((bitboard_array[W_ROOK] & squareMask) != 0) return Piece::W_ROOK;
     if((bitboard_array[W_QUEEN] & squareMask) != 0) return Piece::W_QUEEN;
     if((bitboard_array[W_KING] & squareMask) != 0) return Piece::W_KING;
     if((bitboard_array[B_PAWN] & squareMask) != 0) return Piece::B_PAWN;

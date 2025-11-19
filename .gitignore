@@ -33,6 +33,7 @@ migrate_working_dir/
 .pub/
 /build/
 
+
 # Symbolication related
 app.*.symbols
 
@@ -50,4 +51,7 @@ app.*.map.json
 
 #C++
 /native/build
+/native/build-debug/
+/native/build-release/
+
 

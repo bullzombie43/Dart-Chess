@@ -1,14 +1,57 @@
 {
     "configurations": [
         {
-            "name": "(lldb) Launch Unit Tests",
+            "name": "(lldb) Launch Board Unit Tests",
             "type": "cppdbg",
             "request": "launch",
             "program": "${workspaceFolder}/native/build/board_test",
             "args": [],
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}/native/build",
-            "preLaunchTask": "build_board_test",
+            "preLaunchTask": "build_unit_tests_debug",
+            "environment": [],
+            "externalConsole": false,
+            "MIMode": "lldb"
+        },
+        // 🔵 DEBUG BUILD (O0)
+        {
+            "name": "Engine Unit Tests (Debug)",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/native/build-debug/engine_test",
+            "args": [],
+            "stopAtEntry": false,
+            "cwd": "${workspaceFolder}/native/build-debug",
+            "preLaunchTask": "build_unit_tests_debug",
+            "environment": [],
+            "externalConsole": false,
+            "MIMode": "lldb"
+        },
+
+        // 🔴 HIGH OPTIMIZATION (O3)
+        {
+            "name": "Engine Unit Tests (Release – O3)",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/native/build-release/engine_test",
+            "args": [],
+            "stopAtEntry": false,
+            "cwd": "${workspaceFolder}/native/build-release",
+            "preLaunchTask": "build_unit_tests_release",
+            "environment": [],
+            "externalConsole": false,
+            "MIMode": "lldb"
+        },
+        // Profileer
+        {
+            "name": "Engine Unit Tests (Profiler)",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/native/build/engine_test",
+            "args": [],
+            "stopAtEntry": false,
+            "cwd": "${workspaceFolder}/native/build/",
+            "preLaunchTask": "build_unit_tests_profile",
             "environment": [],
             "externalConsole": false,
             "MIMode": "lldb"

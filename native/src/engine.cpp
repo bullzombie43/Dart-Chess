@@ -1,7 +1,8 @@
 #include "../include/engine.h"
 #include <ranges> 
 #include "utils.h"
-#include "Engine.h"
+#include "engine.h"
+#include <iostream>
 
 std::vector<Move> Engine::generate_psuedo_legal_moves(const Board &board)
 {
@@ -61,7 +62,11 @@ uint64_t Engine::perft(Board &board, int depth)
 
     uint64_t nodes = 0;
 
-    move_list = generate_psuedo_legal_moves(board);
+    if(depth == 0){
+        return 1;
+    }
+
+    move_list = generate_legal_moves(board);
     n_moves = move_list.size();
 
     if(depth == 1){
@@ -77,8 +82,21 @@ uint64_t Engine::perft(Board &board, int depth)
     return nodes;
 }
 
-void Engine::perft_divide(Board &board, int depth)
+uint64_t Engine::perft_divide(Board &board, int depth)
 {
+    auto moves = generate_legal_moves(board);
+    uint64_t total_nodes = 0;
+
+    for (Move& m : moves) {
+        board.make_move(m);
+        uint64_t nodes = perft(board, depth - 1);
+        board.undo_move();
+        total_nodes += nodes;
+
+        std::cout << move_to_string(m) << ": " << nodes << "\n";
+    }
+
+    return total_nodes;
 }
 
 void Engine::generate_moves_from_square(const Board &board, Piece piece, uint8_t index, std::vector<Move> &moves)
@@ -150,26 +168,26 @@ void Engine::generate_pawn_moves(const Board &board, Piece piece, uint8_t index,
 {
     Color our_color = colorOf(piece);
 
-    uint8_t direction = our_color == Color::WHITE ? North : South;
+    int direction = our_color == Color::WHITE ? 8 : -8;
     int leftCap = (our_color == Color::WHITE ? +7 : -9);
     int rightCap = (our_color == Color::WHITE ? +9 : -7);
 
-    uint8_t start_rank = (our_color == Color::WHITE ? 1 : 6);     // rank 2 or rank 7
-    uint8_t promo_rank = (our_color == Color::WHITE ? 7 : 0);     // rank 8 or rank 1
-    uint8_t ep_direction = direction;
+    int start_rank = (our_color == Color::WHITE ? 1 : 6);     // rank 2 or rank 7
+    int promo_rank = (our_color == Color::WHITE ? 7 : 0);     // rank 8 or rank 1
+    int ep_direction = direction;
 
-    uint8_t single_push = index + direction;
+    int single_push = index + direction;
 
     std::vector<Move> temp_moves;
 
     // ---------- 1. FORWARD MOVES ----------
     if(!board.get_piece_at(single_push).has_value()){
-        temp_moves.push_back(Move{piece, index, single_push, std::nullopt, std::nullopt, false, false});
+        temp_moves.push_back(Move{piece, index, static_cast<uint8_t>(single_push), std::nullopt, std::nullopt, false, false});
 
         if(rankOf(index) == start_rank){
-            uint8_t double_push = index + 2*direction;
+            int double_push = index + 2*direction;
             if(!board.get_piece_at(double_push).has_value()){
-                temp_moves.push_back(Move{piece, index, double_push, std::nullopt, std::nullopt, false, false});
+                temp_moves.push_back(Move{piece, index, static_cast<uint8_t>(double_push), std::nullopt, std::nullopt, false, false});
             }
         }
     }
@@ -192,7 +210,7 @@ void Engine::generate_pawn_moves(const Board &board, Piece piece, uint8_t index,
         }
 
         // ---------- 3. EN PASSANT ----------
-        if(target == board.enPassantSquare.value() && board.color_can_en_passant == our_color){
+        if(board.enPassantSquare.has_value() && target == board.enPassantSquare.value() && board.color_can_en_passant == our_color){
             std::optional<Piece> ep_piece = board.get_piece_at(target + (colorOf(piece) == Color::WHITE ? -8 : +8));
             temp_moves.push_back(Move{piece, index, target, target_piece, std::nullopt, true, false});
         }

@@ -1648,14 +1648,14 @@ void main(){
 
     game.printBoard();
 
-    game.setBoardToFen("rnbqkbnr/pp1ppppp/8/2p5/4P3/5N2/PPPP1PPP/RNBQKB1R b KQkq - 1 2");
+    //game.setBoardToFen("rnbqkbnr/pp1ppppp/8/2p5/4P3/5N2/PPPP1PPP/RNBQKB1R b KQkq - 1 2");
 
     game.printBoard();
 
     print(game.getFen());
 
     //dividePerft(game, 4);
-    //perftTest(game);
+    perftTest(game);
     //bulkPerft(game);
 
     //testCTZDebruijn();

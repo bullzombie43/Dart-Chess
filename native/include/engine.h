@@ -4,6 +4,8 @@
 
 class Engine{
     public:
+        Engine() = default;
+
         /*  *   *   *   *  *  */
         /*   MOVE GENERATION  */
         /*  *   *   *   *  *  */
@@ -19,7 +21,7 @@ class Engine{
         uint64_t perft(Board& board, int depth);
 
         // Utility for the top level, prints results clearly.
-        void perft_divide(Board& board, int depth);
+        uint64_t perft_divide(Board& board, int depth);
 
         /*  *   *   *   *   *  *  */
         /*  SEARCH AND EVALUATION */
@@ -55,4 +57,35 @@ inline std::array<Piece,4> promotion_pieces(Color c) {
     } else {
         return { Piece::B_QUEEN, Piece::B_ROOK, Piece::B_BISHOP, Piece::B_KNIGHT };
     }
+}
+
+inline std::string move_to_string(Move m) {
+    auto sq = [](int s) {
+        char file = 'a' + (s % 8);
+        char rank = '1' + (s / 8);
+        return std::string{file, rank};
+    };
+7
+    std::string str;
+
+    // From → To coordinates
+    str += sq(m.from_square);
+    str += sq(m.to_square);
+
+    // Promotion (e7e8q)
+    if (m.promoted_piece != std::nullopt) {
+        switch (m.promoted_piece.value()) {
+            case Piece::W_QUEEN:
+            case Piece::B_QUEEN:  str += "q"; break;
+            case Piece::W_ROOK:
+            case Piece::B_ROOK:   str += "r"; break;
+            case Piece::W_BISHOP:
+            case Piece::B_BISHOP: str += "b"; break;
+            case Piece::W_KNIGHT:
+            case Piece::B_KNIGHT: str += "n"; break;
+            default: break;
+        }
+    }
+
+    return str;
 }
