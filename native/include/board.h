@@ -135,7 +135,8 @@ class Board {
     private:
         std::array<uint64_t, 12> bitboard_array;
 
-        std::stack<Move_State> move_history; 
+        Move_State move_history[2048];
+        int history_ply = 0;
 
         //Castling stuff
         void remove_castling_right(CastlingRights right);

@@ -86,13 +86,13 @@ void Board::set_position_fen(const std::string &fen)
 void Board::make_move(Move& move) {
     Bitboard bitboard = bitboard_array[move.piece];
     
-    move_history.emplace(Move_State{
+    move_history[history_ply++] = Move_State{
         move,
         move.captured_piece,
         enPassantSquare,
         castlingRightsState,
         move.promoted_piece.has_value()
-    });
+    };
 
     if(move.is_enpassant && move.captured_piece.has_value()){
         int captured_pawn_square = (move.piece == Piece::W_PAWN)
@@ -166,12 +166,11 @@ void Board::make_move(Move& move) {
 }
 
 void Board::undo_move() {
-    if(move_history.empty()){
+    if(history_ply == 0){
         throw std::invalid_argument("Tried to invoke undo_move when move_history was empty");
     }
 
-    Move_State last = move_history.top();
-    move_history.pop();
+    Move_State last = move_history[--history_ply];
 
     Move move = last.move;
 

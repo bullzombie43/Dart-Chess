@@ -65,7 +65,7 @@ inline std::string move_to_string(Move m) {
         char rank = '1' + (s / 8);
         return std::string{file, rank};
     };
-7
+
     std::string str;
 
     // From → To coordinates
