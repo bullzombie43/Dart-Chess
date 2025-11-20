@@ -11,16 +11,18 @@ class Engine{
         /*  *   *   *   *  *  */
 
         // Generates all pseudo-legal moves for the current side-to-move.
-        std::vector<Move> generate_psuedo_legal_moves(const Board& board);
+        int generate_psuedo_legal_moves(const Board& board, Move* moves);
 
         // Filters the pseudo-legal moves to only include those that don't
         // leave the king in check (i.e., making them legal).
-        std::vector<Move> generate_legal_moves(Board& board);
+        int generate_legal_moves(Board& board, Move* moves);
 
         // Performs the Perft search (counting legal move positions) recursively.
+        uint64_t perft(Board& board, int depth, int current_depth, Move* moves);
         uint64_t perft(Board& board, int depth);
 
         // Utility for the top level, prints results clearly.
+        uint64_t perft_divide(Board& board, int depth, Move* moves, int current_depth);
         uint64_t perft_divide(Board& board, int depth);
 
         /*  *   *   *   *   *  *  */
@@ -32,13 +34,13 @@ class Engine{
 
     private:
         // Helper function to generate moves for a single piece type/color
-        void generate_moves_from_square(const Board& board, Piece piece, uint8_t index, std::vector<Move>& moves);
+        void generate_moves_from_square(const Board& board, Piece piece, uint8_t index, Move* moves, int& move_count);
 
-        void generate_sliding_moves(const Board& board, Piece piece, uint8_t index, std::vector<Move>& moves);
-        void generate_pawn_moves(const Board& board, Piece piece, uint8_t index, std::vector<Move>& moves);
-        void generate_knight_moves(const Board& board, Piece piece, uint8_t index, std::vector<Move>& moves);
-        void generate_king_moves(const Board& board, Piece piece, uint8_t index, std::vector<Move>& moves);
-        void generate_castle_moves(const Board& board, Piece piece, uint8_t index, std::vector<Move>& moves);
+        void generate_sliding_moves(const Board& board, Piece piece, uint8_t index, Move* moves, int& move_count);
+        void generate_pawn_moves(const Board& board, Piece piece, uint8_t index, Move* moves, int& move_count);
+        void generate_knight_moves(const Board& board, Piece piece, uint8_t index, Move* moves, int& move_count);
+        void generate_king_moves(const Board& board, Piece piece, uint8_t index, Move* moves, int& move_count);
+        void generate_castle_moves(const Board& board, Piece piece, uint8_t index, Move* moves, int& move_count);
 
         enum Direction{
             North = 8,
@@ -49,6 +51,7 @@ class Engine{
 
         Bitboard shift(Bitboard board, Direction direction);
         void extract_pawn_push(Bitboard board, int shift, std::vector<Move>& moves);
+        std::string generate_fen_piece_placement();
 };
 
 inline std::array<Piece,4> promotion_pieces(Color c) {
@@ -89,3 +92,6 @@ inline std::string move_to_string(Move m) {
 
     return str;
 }
+
+constexpr int MAX_NUMBER_OF_MOVES = 256;
+constexpr int MAX_DEPTH = 6;               // or whatever max perft depth you need

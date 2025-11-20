@@ -3,6 +3,7 @@
 #include <regex>
 #include <iostream>
 #include "board.h"
+#include <sstream>
 
 Board::Board() {
     sideToMove = Color::WHITE;
@@ -287,6 +288,86 @@ void Board::update_color_bitboard()
     | bitboard_array[B_ROOK] | bitboard_array[B_QUEEN] | bitboard_array[B_KING];
 }
 
+std::string Board::getFen()
+{
+    std::array<std::string,6> parts;
+
+    // ---------- 1. Piece placement ----------
+    parts[0] = generate_piece_placement_fen();
+
+    // ---------- 2. Side to move ----------
+    parts[1] = sideToMove == Color::WHITE  ? "w" : "b";
+
+    // ---------- 3. Castling rights ----------
+    parts[2] = "";
+    if (can_castle(CastlingRights::WHITE_KINGSIDE))  parts[2] += "K";
+    if (can_castle(CastlingRights::WHITE_QUEENSIDE)) parts[2] += "Q";
+    if (can_castle(CastlingRights::BLACK_KINGSIDE))  parts[2] += "k";
+    if (can_castle(CastlingRights::BLACK_QUEENSIDE)) parts[2] += "q";
+    if (parts[2].empty()) parts[2] = "-";
+
+    // ---------- 4. En passant ----------
+    parts[3] = enPassantSquare.has_value() ? index_to_square(enPassantSquare.value()) : "-";
+
+    // ---------- 5. Halfmove clock ----------
+    parts[4] = "0";
+
+    // ---------- 6. Fullmove number ----------
+    parts[5] = "1";
+
+    // Join all parts with spaces
+    std::ostringstream fen;
+    for (int i = 0; i < 6; ++i) {
+        if (i > 0) fen << " ";
+        fen << parts[i];
+    }
+
+    return fen.str();
+}
+
+std::string Board::generate_piece_placement_fen()
+{
+    std::ostringstream buffer;
+
+    // Loop ranks from 8 down to 1 (FEN goes top → bottom)
+    for(int rank = 7; rank >= 0; --rank) {
+        int emptyCount = 0;
+
+        for(int file = 0; file < 8; ++file) {
+            int square = rank * 8 + file;
+            std::optional<Piece> piece = get_piece_at(square);
+
+            if(!piece.has_value()) {
+                emptyCount++;
+            } else {
+                if(emptyCount > 0) {
+                    buffer << emptyCount;
+                    emptyCount = 0;
+                }
+                buffer << pieceToChar[piece.value()];
+            }
+        }
+
+        // Write trailing empties if any
+        if(emptyCount > 0) buffer << emptyCount;
+
+        if(rank > 0) buffer << '/';
+    }
+
+    return buffer.str();
+}
+
+std::string Board::index_to_square(int index)
+{
+    int rank = index / 8;       // integer division
+    int file = index % 8;
+
+    char fileChar = 'a' + file; // 'a'..'h'
+    char rankChar = '1' + rank; // '1'..'8'
+
+    return std::string() + fileChar + rankChar;
+}
+
 void Board::print_board(std::ostream& os) const {
     for(int rank = 7; rank >=0; rank--){
         for(int file = 0; file <= 7; file++){
@@ -387,7 +468,8 @@ void Board::castle_move(Move &king_move)
       rookStart = king_move.from_square - 4; // rook originally on a-file
       rookEnd = king_move.from_square - 1;   // rook moves next to king
     } else {
-      throw std::invalid_argument("Invalid castling move");
+        std::cout << "FEN: " << getFen() << std::endl;
+        throw std::invalid_argument("Invalid castling move");
     }
 
     // Determine which rook piece
@@ -400,6 +482,8 @@ void Board::castle_move(Move &king_move)
 
 bool Board::is_square_attacked(int target, Color attacking_color) const
 {
+    if(target < 0 || target > 63) std::cerr << "is_square_atatcked: Target must be between 0 and 63" << std::endl;
+
     Bitboard occupied = 0;
     for(int i = 0; i < 12; i++){
         occupied |= bitboard_array[i];

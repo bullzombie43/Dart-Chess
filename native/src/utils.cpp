@@ -139,7 +139,7 @@ const std::array<Bitboard, 128> pawn_attacks = []{
     return result;
 }();
 
-const const std::array<std::array<int,8>, 64> num_squares_to_edge = []{
+const std::array<std::array<int,8>, 64> num_squares_to_edge = []{
     std::array<std::array<int,8>, 64> data;
 
     for (int file = 0; file < 8; file++) {

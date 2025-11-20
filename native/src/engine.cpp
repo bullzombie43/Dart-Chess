@@ -3,10 +3,11 @@
 #include "utils.h"
 #include "engine.h"
 #include <iostream>
+#include "engine.h"
 
-std::vector<Move> Engine::generate_psuedo_legal_moves(const Board &board)
+int Engine::generate_psuedo_legal_moves(const Board &board, Move* moves)
 {
-    std::vector<Move> pseudo_moves;
+    int move_count = 0;
     Color color = board.sideToMove;
     
     // Determine the range of pieces to check (W_PAWN to W_KING or B_PAWN to B_KING)
@@ -26,93 +27,116 @@ std::vector<Move> Engine::generate_psuedo_legal_moves(const Board &board)
             int from_square = __builtin_ctzll(pieces_bb); 
 
             // 3. Call the specialized helper to generate moves from this square
-            generate_moves_from_square(board, piece, from_square, pseudo_moves);
+            generate_moves_from_square(board, piece, from_square, moves, move_count);
 
             // 4. Clear the bit we just processed
             pieces_bb &= (pieces_bb - 1);
         }
     }
     
-    return pseudo_moves;
+    return move_count;
 }
 
-std::vector<Move> Engine::generate_legal_moves(Board &board)
+int Engine::generate_legal_moves(Board &board, Move* moves)
 {
-    std::vector<Move> psuedo_legal_moves = generate_psuedo_legal_moves(board);
+    int psuedo_count = generate_psuedo_legal_moves(board, moves);
 
-    std::vector<Move> legal_moves;
+    Move* out = moves;         // write pointer for legal moves
+    Move* in  = moves;         // read pointer for pseudo-legal moves
 
-    for(Move& m : psuedo_legal_moves){
-        board.make_move(m);
+    for(int i = 0; i < psuedo_count; i++, in++){
+        board.make_move(*in); // read and make the move in psuedo-legal
 
+        //increment until we find a legal move basically
         if(!board.is_in_check(board.sideToMove == Color::WHITE ? Color::BLACK : Color::WHITE)){
-            legal_moves.push_back(m);
+            *out = *in; //overwrites with the next legal move
+            out++; //by the end the front n moves are all the legal moves, and we return n
+                    //that way we when we loop over we only look at the front n moves, aka the legal moves
         }
 
         board.undo_move();
     }
 
-    return legal_moves;
+    return static_cast<int>(out - moves); //out starts at start of moves and goes to last move, so the difference is # of legal moves
 }
 
-uint64_t Engine::perft(Board &board, int depth)
-{
-    std::vector<Move> move_list;
-    uint64_t n_moves;
+uint64_t Engine::perft(Board &board, int depth, int current_depth, Move* moves) {
+    if(depth == 0) return 1;
+
+    // Use a small, fixed-size array allocated on the stack.
+    // This is incredibly fast and avoids pointer arithmetic errors.
+    Move move_list[MAX_NUMBER_OF_MOVES]; 
+
+    // Generate legal moves into the stack array
+    // (You will need to modify your generate_legal_moves signature)
+    int n_moves = generate_legal_moves(board, move_list); 
+
+    if(depth == 1) return n_moves;
 
     uint64_t nodes = 0;
 
-    if(depth == 0){
-        return 1;
-    }
-
-    move_list = generate_legal_moves(board);
-    n_moves = move_list.size();
-
-    if(depth == 1){
-        return n_moves;
-    }
-
-    for(int i = 0; i< n_moves; i++){
+    for(int i = 0; i < n_moves; i++) {
         board.make_move(move_list[i]);
-        nodes += perft(board, depth-1);
-        board.undo_move();
+        // Recursive call without passing a move array
+        nodes += perft(board, depth - 1); 
+        board.undo_move(); 
     }
 
     return nodes;
 }
 
-uint64_t Engine::perft_divide(Board &board, int depth)
+uint64_t Engine::perft(Board &board, int depth) {
+    Move moves[MAX_DEPTH * MAX_NUMBER_OF_MOVES];
+    return perft(board, depth, 0, moves);
+}
+
+uint64_t Engine::perft_divide(Board &board, int depth, Move* moves, int current_depth = 0)
 {
-    auto moves = generate_legal_moves(board);
+    // Generate legal moves into the slice for this depth
+    int n_moves = generate_legal_moves(board, moves);
     uint64_t total_nodes = 0;
 
-    for (Move& m : moves) {
-        board.make_move(m);
-        uint64_t nodes = perft(board, depth - 1);
+    // Slice for the next depth
+    Move* next_moves = moves + MAX_NUMBER_OF_MOVES;  // assuming MAX_MOVES_PER_NODE is defined
+
+    for (int i = 0; i < n_moves; i++) {
+        board.make_move(moves[i]);
+
+        uint64_t nodes;
+        if(depth - 1 == 0){
+            nodes = 1;
+        } else {
+            nodes = perft(board, depth - 1, current_depth + 1, next_moves);
+        }
+
         board.undo_move();
         total_nodes += nodes;
 
-        std::cout << move_to_string(m) << ": " << nodes << "\n";
+        std::cout << move_to_string(moves[i]) << ": " << nodes << "\n";
     }
 
     return total_nodes;
 }
 
-void Engine::generate_moves_from_square(const Board &board, Piece piece, uint8_t index, std::vector<Move> &moves)
+uint64_t Engine::perft_divide(Board &board, int depth) {
+    Move moves[MAX_DEPTH * MAX_NUMBER_OF_MOVES];
+    return perft_divide(board, depth, moves, 0);
+}
+
+void Engine::generate_moves_from_square(const Board &board, Piece piece, uint8_t index, Move* moves, int& move_count)
 {
     if(piece == Piece::W_KNIGHT || piece == Piece::B_KNIGHT){
-        generate_knight_moves(board, piece, index, moves);
+        generate_knight_moves(board, piece, index, moves, move_count);
     } else if(piece == Piece::W_KING || piece == Piece::B_KING){
-        generate_king_moves(board, piece, index, moves);
+        generate_king_moves(board, piece, index, moves, move_count);
     } else if (piece == Piece::W_PAWN || piece == Piece::B_PAWN){
-        generate_pawn_moves(board, piece, index, moves);
+        generate_pawn_moves(board, piece, index, moves, move_count);
     } else {
-        generate_sliding_moves(board, piece, index, moves);
+        generate_sliding_moves(board, piece, index, moves, move_count);
     }
 }
 
-void Engine::generate_sliding_moves(const Board &board, Piece piece, uint8_t index, std::vector<Move> &moves)
+void Engine::generate_sliding_moves(const Board &board, Piece piece, uint8_t index, Move* moves, int& move_count)
 {
     //Implemet Shift and Mask Approach later for faster generation
     int startDirIndex = piece == Piece::B_BISHOP || piece == Piece::W_BISHOP ? 4 : 0;
@@ -125,9 +149,8 @@ void Engine::generate_sliding_moves(const Board &board, Piece piece, uint8_t ind
       for(int n = 0; n < num_squares_to_edge[index][directionIndex]; n++){
         int targetSquare = index + direction_offsets[directionIndex] * (n+1);
 
-        if(targetSquare < 0){
-          break;
-        }
+        if(targetSquare < 0 || targetSquare > 63) break;
+
 
         const Bitboard target_bit = 1ULL << targetSquare;
         
@@ -138,7 +161,7 @@ void Engine::generate_sliding_moves(const Board &board, Piece piece, uint8_t ind
         if((opp_color & target_bit) != 0){
             auto captured_piece = board.get_piece_at(targetSquare);
             // Construct the Move struct and add it to the list
-            moves.push_back(Move{
+            moves[move_count++] = Move{
                 (uint8_t)piece,          
                 (uint8_t)index,     
                 (uint8_t)targetSquare,    
@@ -146,12 +169,12 @@ void Engine::generate_sliding_moves(const Board &board, Piece piece, uint8_t ind
                 std::nullopt,             
                 false,                    
                 false                    
-            });
+            };
             break;
         }
 
         // Construct the Move struct and add it to the list
-        moves.push_back(Move{
+        moves[move_count++] = Move{
             (uint8_t)piece,          
             (uint8_t)index,     
             (uint8_t)targetSquare,    
@@ -159,12 +182,12 @@ void Engine::generate_sliding_moves(const Board &board, Piece piece, uint8_t ind
             std::nullopt,             
             false,                    
             false                    
-        });
+        };
       }
     }
 }
 
-void Engine::generate_pawn_moves(const Board &board, Piece piece, uint8_t index, std::vector<Move> &moves)
+void Engine::generate_pawn_moves(const Board &board, Piece piece, uint8_t index, Move* moves, int& move_count)
 {
     Color our_color = colorOf(piece);
 
@@ -178,26 +201,29 @@ void Engine::generate_pawn_moves(const Board &board, Piece piece, uint8_t index,
 
     int single_push = index + direction;
 
-    std::vector<Move> temp_moves;
-
     // ---------- 1. FORWARD MOVES ----------
-    if(!board.get_piece_at(single_push).has_value()){
-        temp_moves.push_back(Move{piece, index, static_cast<uint8_t>(single_push), std::nullopt, std::nullopt, false, false});
+    if(single_push >= 0 && single_push < 64 && !board.get_piece_at(single_push).has_value()){
+        if(rankOf(single_push) == promo_rank){
+            for (Piece promo : promotion_pieces(our_color)) {
+                moves[move_count++] = Move{piece, (uint8_t)index, (uint8_t)single_push, std::nullopt, promo, false, true};
+            }
+        } else {
+            moves[move_count++]= Move{piece, index, static_cast<uint8_t>(single_push), std::nullopt, std::nullopt, false, false};
 
-        if(rankOf(index) == start_rank){
-            int double_push = index + 2*direction;
-            if(!board.get_piece_at(double_push).has_value()){
-                temp_moves.push_back(Move{piece, index, static_cast<uint8_t>(double_push), std::nullopt, std::nullopt, false, false});
+            if(rankOf(index) == start_rank){
+                int double_push = index + 2*direction;
+                if(double_push >= 0 && double_push < 64 && !board.get_piece_at(double_push).has_value()){
+                    moves[move_count++] = Move{piece, index, static_cast<uint8_t>(double_push), std::nullopt, std::nullopt, false, false};
+                }
             }
         }
     }
 
     // ---------- 2. CAPTURE MOVES ----------
-    for(uint8_t diag_offset : {leftCap,rightCap}){
-        uint8_t target = index + diag_offset;
-        std::optional<Piece> target_piece = board.get_piece_at(target);
-
+    for(int diag_offset : {leftCap,rightCap}){
+        int target = index + diag_offset;
         if (target < 0 || target >= 64) continue;
+        std::optional<Piece> target_piece = board.get_piece_at(target);
 
         // Check file wrapping
         int fileDiff = ((index+diag_offset) % 8) - (index % 8);
@@ -206,35 +232,32 @@ void Engine::generate_pawn_moves(const Board &board, Piece piece, uint8_t index,
 
         //Normal
         if(target_piece != std::nullopt && colorOf(target_piece.value()) != our_color){
-            temp_moves.push_back(Move{piece, index, target, target_piece, std::nullopt, false, false});
+            if(rankOf(target) == promo_rank){
+                for (Piece promo : promotion_pieces(our_color)) {
+                    moves[move_count++] = Move{piece, (uint8_t)index, (uint8_t)target, target_piece, promo, false, true};
+                }
+            } else {
+                moves[move_count++] = Move{piece, index, (uint8_t) target, target_piece, std::nullopt, false, false};
+            }
         }
 
         // ---------- 3. EN PASSANT ----------
         if(board.enPassantSquare.has_value() && target == board.enPassantSquare.value() && board.color_can_en_passant == our_color){
-            std::optional<Piece> ep_piece = board.get_piece_at(target + (colorOf(piece) == Color::WHITE ? -8 : +8));
-            temp_moves.push_back(Move{piece, index, target, target_piece, std::nullopt, true, false});
+            int ep_index = target + (our_color == Color::WHITE ? -8 : +8);
+            std::optional<Piece> ep_piece = (ep_index >= 0 && ep_index < 64) ? board.get_piece_at(ep_index) : std::nullopt;
+            moves[move_count++] = Move{piece, index, (uint8_t) target, ep_piece, std::nullopt, true, false};
         }
     }
 
-    // ---------- 4. PROMOTION ----------
-    for(const auto& m : temp_moves){
-        if(rankOf(m.to_square) == promo_rank){
-            for(Piece promo : promotion_pieces(our_color)){
-                moves.push_back(Move{m.piece, m.from_square, m.to_square, m.captured_piece, promo, m.is_enpassant, true});
-            }
-        } else {
-            moves.push_back(m);
-        }
-    }
 }
 
-void Engine::generate_knight_moves(const Board &board, Piece piece, uint8_t index, std::vector<Move> &moves)
+void Engine::generate_knight_moves(const Board &board, Piece piece, uint8_t index, Move* moves, int& move_count)
 {
     int startDirIndex = 8;
     int endDirIndex = 16;
 
     for(int directionIndex = startDirIndex; directionIndex < endDirIndex; directionIndex++){
-      uint8_t targetSquare = index + direction_offsets[directionIndex];
+      int targetSquare = index + direction_offsets[directionIndex];
 
       if(targetSquare < 0 || targetSquare > 63) continue;
 
@@ -246,14 +269,13 @@ void Engine::generate_knight_moves(const Board &board, Piece piece, uint8_t inde
 
       if(target_piece.has_value() && colorOf(target_piece.value()) == colorOf(piece)) continue;
 
-      moves.push_back(Move{piece, index, targetSquare, target_piece, std::nullopt, false, false});
+      moves[move_count++] = Move{piece, index, (uint8_t) targetSquare, target_piece, std::nullopt, false, false};
      }
 }
 
-void Engine::generate_king_moves(const Board &board, Piece piece, uint8_t index, std::vector<Move> &moves)
-{
-    for(int directionIndex = 0; directionIndex < 8; directionIndex++){
-      uint8_t targetSquare = index + direction_offsets[directionIndex];
+void Engine::generate_king_moves(const Board &board, Piece piece, uint8_t index, Move* moves, int& move_count)
+{    for(int directionIndex = 0; directionIndex < 8; directionIndex++){
+      int targetSquare = index + direction_offsets[directionIndex];
 
       if(targetSquare < 0 || targetSquare > 63){
         continue;
@@ -261,22 +283,21 @@ void Engine::generate_king_moves(const Board &board, Piece piece, uint8_t index,
 
       // Check file wrapping
       int fileDiff = (targetSquare % 8) - (index % 8);
-      if (std::abs(fileDiff) > 2) continue; // illegal wrap
+      if (std::abs(fileDiff) > 1) continue; // illegal wrap
       
       std::optional<Piece> target_piece = board.get_piece_at(targetSquare);
 
       if(target_piece.has_value() && colorOf(target_piece.value()) == colorOf(piece)) continue;
 
-      moves.push_back(Move{piece, index, targetSquare, target_piece, std::nullopt, false, false});
+      moves[move_count++] = Move{piece, index, (uint8_t)targetSquare, target_piece, std::nullopt, false, false};
     }
 
     //Add in castle moves
-    generate_castle_moves(board, piece, index, moves);
+    generate_castle_moves(board, piece, index, moves,move_count);
 }
 
-void Engine::generate_castle_moves(const Board &board, Piece piece, uint8_t index, std::vector<Move> &moves)
-{
-    struct CastleInfo {
+void Engine::generate_castle_moves(const Board &board, Piece piece, uint8_t index, Move* moves, int& move_count)
+{    struct CastleInfo {
         CastlingRights right;
         int rookSquare;
         int kingFrom;
@@ -337,7 +358,7 @@ void Engine::generate_castle_moves(const Board &board, Piece piece, uint8_t inde
         if (!safe_ok) continue;
 
         // 5. Add castling move
-        moves.push_back(Move{
+        moves[move_count++] = Move{
             board.get_piece_at(cs.kingFrom).value(),
             (uint8_t)cs.kingFrom,
             (uint8_t)cs.kingTo,
@@ -345,7 +366,7 @@ void Engine::generate_castle_moves(const Board &board, Piece piece, uint8_t inde
             std::nullopt,
             false,
             true  // is_castle
-        });
+        };
     }
 }
 
@@ -353,5 +374,4 @@ Bitboard Engine::shift(Bitboard board, Direction direction)
 {
     return (board << static_cast<int>(direction));
 }
-
 

@@ -17,10 +17,11 @@ class EngineTestFixture : public ::testing::Test {
 
 TEST_F(EngineTestFixture, PerftOne){
     board.set_position_fen("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1");
+    std::cout << "starting 1" << std::endl;
     int result = engine.perft(board, 1);
     EXPECT_EQ(result, 20);
     std::cout << "Depth: 1, Moves: " << result << std::endl;
-};
+ };
 
 TEST_F(EngineTestFixture, PerfTwo){
     board.set_position_fen("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1");
@@ -46,8 +47,11 @@ TEST_F(EngineTestFixture, PerfFour){
 };
 
 TEST_F(EngineTestFixture, PerfFive){
-    board.set_position_fen("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1");
-    int result = engine.perft(board, 5);
+    board.set_position_fen("rnbqkbnr/1ppppppp/8/p7/3P4/8/PPP1PPPP/RNBQKBNR w KQkq a6 0 1");
+    //board.set_position_fen("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1");
+    board.print_board(std::cout);
+    int result = engine.perft_divide(board, 3);
+    board.print_board(std::cout);
     EXPECT_EQ(result, 4865609);
     std::cout << "Depth: 5, Moves: " << result << std::endl;
 }

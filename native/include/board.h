@@ -128,6 +128,8 @@ class Board {
         Bitboard get_active_color_bb() const;
         Bitboard get_empty_squares() const;
         bool is_square_attacked(int square, Color attacking_color) const;
+        std::string getFen();
+
 
 
         void print_board(std::ostream& os) const;
@@ -152,6 +154,9 @@ class Board {
         int get_king_square(Color color);
 
         void update_color_bitboard();
+
+        std::string generate_piece_placement_fen();
+        std::string index_to_square(int index);
 
         
 };
