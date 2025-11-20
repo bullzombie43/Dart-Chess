@@ -40,21 +40,25 @@ TEST_F(EngineTestFixture, PerfThree){
 
 TEST_F(EngineTestFixture, PerfFour){
     board.set_position_fen("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1");
+    std::cout << board.getFen() << std::endl;
     int result = engine.perft(board, 4);
     EXPECT_EQ(result, 197281);
     std::cout << "Depth: 4, Moves: " << result << std::endl;
+    std::cout << board.getFen() << std::endl;
+
 
 };
 
 TEST_F(EngineTestFixture, PerfFive){
-    board.set_position_fen("rnbqkbnr/1ppppppp/8/p7/3P4/8/PPP1PPPP/RNBQKBNR w KQkq a6 0 1");
-    //board.set_position_fen("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1");
-    board.print_board(std::cout);
-    int result = engine.perft_divide(board, 3);
-    board.print_board(std::cout);
+    //board.set_position_fen("rnbqkbnr/1ppppppp/8/p7/3P4/8/PPP1PPPP/RNBQKBNR w KQkq a6 0 1");
+    board.set_position_fen("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1");
+    std::cout << board.getFen() << std::endl;
+    //int result = engine.perft_divide(board, 3);
+    int result = engine.perft(board, 5);
     EXPECT_EQ(result, 4865609);
     std::cout << "Depth: 5, Moves: " << result << std::endl;
-}
+    std::cout << board.getFen() << std::endl;
+};
 
 TEST_F(EngineTestFixture, PerfSix){
     board.set_position_fen("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1");

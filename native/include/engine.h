@@ -18,11 +18,9 @@ class Engine{
         int generate_legal_moves(Board& board, Move* moves);
 
         // Performs the Perft search (counting legal move positions) recursively.
-        uint64_t perft(Board& board, int depth, int current_depth, Move* moves);
         uint64_t perft(Board& board, int depth);
 
         // Utility for the top level, prints results clearly.
-        uint64_t perft_divide(Board& board, int depth, Move* moves, int current_depth);
         uint64_t perft_divide(Board& board, int depth);
 
         /*  *   *   *   *   *  *  */

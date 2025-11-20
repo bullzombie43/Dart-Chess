@@ -60,67 +60,39 @@ int Engine::generate_legal_moves(Board &board, Move* moves)
     return static_cast<int>(out - moves); //out starts at start of moves and goes to last move, so the difference is # of legal moves
 }
 
-uint64_t Engine::perft(Board &board, int depth, int current_depth, Move* moves) {
-    if(depth == 0) return 1;
+uint64_t Engine::perft(Board &board, int depth) {
+    if (depth == 0) return 1;
 
-    // Use a small, fixed-size array allocated on the stack.
-    // This is incredibly fast and avoids pointer arithmetic errors.
-    Move move_list[MAX_NUMBER_OF_MOVES]; 
+    Move move_list[MAX_NUMBER_OF_MOVES];
+    int n_moves = generate_legal_moves(board, move_list);
 
-    // Generate legal moves into the stack array
-    // (You will need to modify your generate_legal_moves signature)
-    int n_moves = generate_legal_moves(board, move_list); 
-
-    if(depth == 1) return n_moves;
+    if (depth == 1) return n_moves;
 
     uint64_t nodes = 0;
-
-    for(int i = 0; i < n_moves; i++) {
+    for (int i = 0; i < n_moves; i++) {
         board.make_move(move_list[i]);
-        // Recursive call without passing a move array
-        nodes += perft(board, depth - 1); 
-        board.undo_move(); 
+        nodes += perft(board, depth - 1);
+        board.undo_move();
     }
 
     return nodes;
 }
 
-uint64_t Engine::perft(Board &board, int depth) {
-    Move moves[MAX_DEPTH * MAX_NUMBER_OF_MOVES];
-    return perft(board, depth, 0, moves);
-}
-
-uint64_t Engine::perft_divide(Board &board, int depth, Move* moves, int current_depth = 0)
-{
-    // Generate legal moves into the slice for this depth
-    int n_moves = generate_legal_moves(board, moves);
-    uint64_t total_nodes = 0;
-
-    // Slice for the next depth
-    Move* next_moves = moves + MAX_NUMBER_OF_MOVES;  // assuming MAX_MOVES_PER_NODE is defined
-
-    for (int i = 0; i < n_moves; i++) {
-        board.make_move(moves[i]);
-
-        uint64_t nodes;
-        if(depth - 1 == 0){
-            nodes = 1;
-        } else {
-            nodes = perft(board, depth - 1, current_depth + 1, next_moves);
-        }
-
-        board.undo_move();
-        total_nodes += nodes;
-
-        std::cout << move_to_string(moves[i]) << ": " << nodes << "\n";
-    }
-
-    return total_nodes;
-}
-
 uint64_t Engine::perft_divide(Board &board, int depth) {
-    Move moves[MAX_DEPTH * MAX_NUMBER_OF_MOVES];
-    return perft_divide(board, depth, moves, 0);
+    Move move_list[MAX_NUMBER_OF_MOVES];
+    int n_moves = generate_legal_moves(board, move_list);
+
+    uint64_t total = 0;
+    for (int i = 0; i < n_moves; i++) {
+        board.make_move(move_list[i]);
+        uint64_t nodes = perft(board, depth - 1);
+        board.undo_move();
+        
+        std::cout << move_to_string(move_list[i]) << ": " << nodes << std::endl;
+        total += nodes;
+    }
+    
+    std::cout << "\nTotal: " << total << std::endl;
 }
 
 void Engine::generate_moves_from_square(const Board &board, Piece piece, uint8_t index, Move* moves, int& move_count)

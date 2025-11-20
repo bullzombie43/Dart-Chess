@@ -12,6 +12,7 @@ Board::Board() {
     half_move_clock = 0;
     num_moves_total = 0;
     color_can_en_passant = Color::NONE;
+    history_ply = 0;
 
     bitboard_array = {
         0x000000000000FF00,
@@ -86,7 +87,7 @@ void Board::set_position_fen(const std::string &fen)
 //We assume a move passed into here is valid
 void Board::make_move(Move& move) {
     Bitboard bitboard = bitboard_array[move.piece];
-    
+
     move_history[history_ply++] = Move_State{
         move,
         move.captured_piece,
@@ -187,7 +188,7 @@ void Board::undo_move() {
     bitboard_array[move.piece] |= 1ULL << move.from_square;
 
     //Restore capture
-    if(last.captured_piece.has_value()){
+    if(last.captured_piece.has_value() && !move.is_enpassant){
         bitboard_array[last.captured_piece.value()] |= (1ULL << move.to_square);
     }
 
@@ -211,7 +212,7 @@ void Board::undo_move() {
     // Undo en passant
     if (move.is_enpassant && move.captured_piece.has_value()) {
         int capturedPawnSquare = colorOf(static_cast<Piece>(move.piece)) == Color::WHITE
-            ? move.from_square - 8
+            ? move.to_square - 8
             : move.to_square + 8;
         Piece capturedPawn = colorOf(static_cast<Piece>(move.piece)) == Color::WHITE
             ? Piece::B_PAWN
@@ -223,9 +224,6 @@ void Board::undo_move() {
     if (move.promoted_piece.has_value()) {
       // Remove the promoted piece from the board
       bitboard_array[move.promoted_piece.value()] &= ~(1ULL << move.to_square);
-
-      // Restore the pawn on its starting square
-      bitboard_array[move.piece] |= (1ULL << move.from_square);
     }
 
     update_color_bitboard();

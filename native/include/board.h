@@ -130,15 +130,13 @@ class Board {
         bool is_square_attacked(int square, Color attacking_color) const;
         std::string getFen();
 
-
-
         void print_board(std::ostream& os) const;
 
     private:
         std::array<uint64_t, 12> bitboard_array;
 
         Move_State move_history[2048];
-        int history_ply = 0;
+        int history_ply;
 
         //Castling stuff
         void remove_castling_right(CastlingRights right);
