@@ -105,7 +105,7 @@ TEST_F(BoardTestFixture, MakeMoveUnmakeMove){
     board = Board();
     std::ostringstream oss;
 
-    Move pawnC2C4 = {Piece::W_PAWN, 10, 26, std::nullopt, std::nullopt, false, false};    
+    Move pawnC2C4 = {Piece::W_PAWN, 10, 26, Piece::NONE, Piece::NONE, false, false};    
     board.make_move(pawnC2C4);
     board.print_board(oss);
 
@@ -149,7 +149,7 @@ TEST_F(BoardTestFixture, DoublePawnPushAndUndo) {
     // Move: e2 to e4 (square 12 to 28)
     // Note: Piece and captured_piece should be handled by your make_move logic
     // We'll define piece based on its type and color for simplicity here.
-    Move pawnE2E4 = {Piece::W_PAWN, 12, 28, std::nullopt, std::nullopt, false, false};    
+    Move pawnE2E4 = {Piece::W_PAWN, 12, 28, Piece::NONE, Piece::NONE, false, false};    
     
     board.make_move(pawnE2E4);
 
@@ -192,7 +192,7 @@ TEST_F(BoardTestFixture, PawnCaptureAndUndo) {
     board.set_position_fen("rnbqkbnr/pppp1ppp/8/4p3/8/5N2/PPPPPPPP/RNBQKB1R w KQkq - 0 2"); 
     
     // Move: Nf3 takes e5 (square 21 to 36). Captured piece is B_PAWN.
-    Move knightCapturesPawn = {Piece::W_KNIGHT, 21, 36, Piece::B_PAWN, std::nullopt, false, false};
+    Move knightCapturesPawn = {Piece::W_KNIGHT, 21, 36, Piece::B_PAWN, Piece::NONE, false, false};
 
     board.make_move(knightCapturesPawn);
 
@@ -240,8 +240,8 @@ TEST_F(BoardTestFixture, CastlingMakeAndUndo) {
         Piece::W_KING,
         4,        // from e1
         6,        // to g1
-        std::nullopt,
-        std::nullopt,
+        Piece::NONE,
+        Piece::NONE,
         false,    // not en passant
         true      // is castling
     };
@@ -277,8 +277,8 @@ R . . . . R K .
         Piece::W_KING,
         4,        // from e1
         2,        // to c1
-        std::nullopt,
-        std::nullopt,
+        Piece::NONE,
+        Piece::NONE,
         false,
         true
     };

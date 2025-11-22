@@ -77,8 +77,8 @@ inline std::string move_to_string(Move m) {
     str += sq(m.to_square);
 
     // Promotion (e7e8q)
-    if (m.promoted_piece != std::nullopt) {
-        switch (m.promoted_piece.value()) {
+    if (m.promoted_piece != Piece::NONE) {
+        switch (m.promoted_piece) {
             case Piece::W_QUEEN:
             case Piece::B_QUEEN:  str += "q"; break;
             case Piece::W_ROOK:

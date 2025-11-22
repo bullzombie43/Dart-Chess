@@ -145,7 +145,7 @@ void Engine::generate_sliding_moves(const Board &board, Piece piece, uint8_t ind
                 (uint8_t)index,     
                 (uint8_t)targetSquare,    
                 captured_piece,                 
-                std::nullopt,             
+                Piece::NONE,             
                 false,                    
                 false                    
             };
@@ -157,8 +157,8 @@ void Engine::generate_sliding_moves(const Board &board, Piece piece, uint8_t ind
             (uint8_t)piece,          
             (uint8_t)index,     
             (uint8_t)targetSquare,    
-            std::nullopt,                 
-            std::nullopt,             
+            Piece::NONE,                 
+            Piece::NONE,             
             false,                    
             false                    
         };
@@ -213,7 +213,7 @@ void Engine::generate_pawn_moves(const Board &board, Move* moves, int& move_coun
             int to = board.enPassantSquare.value();
             int from = to - UP_RIGHT;
             Piece captured = (us == Color::WHITE) ? Piece::B_PAWN : Piece::W_PAWN;
-            moves[move_count++] = Move{our_piece, (uint8_t) from, (uint8_t) to, captured, std::nullopt, true, false};
+            moves[move_count++] = Move{our_piece, (uint8_t) from, (uint8_t) to, captured, Piece::NONE, true, false};
         }
 
         Bitboard ep_left = shift(pawns_not_on_7th & capture_left_exclude, UP_LEFT) & ep_target;
@@ -222,7 +222,7 @@ void Engine::generate_pawn_moves(const Board &board, Move* moves, int& move_coun
             int to = board.enPassantSquare.value();
             int from = to - UP_LEFT;
             Piece captured = (us == Color::WHITE) ? Piece::B_PAWN : Piece::W_PAWN;
-            moves[move_count++] = Move{our_piece, (uint8_t) from, (uint8_t) to, captured, std::nullopt, true, false};
+            moves[move_count++] = Move{our_piece, (uint8_t) from, (uint8_t) to, captured, Piece::NONE, true, false};
         }
     }
 
@@ -256,11 +256,11 @@ void Engine::generate_knight_moves(const Board &board, Piece piece, uint8_t inde
       int fileDiff = (targetSquare % 8) - (index % 8);
       if (std::abs(fileDiff) > 2) continue; // illegal wrap
 
-      std::optional<Piece> target_piece = board.get_piece_at(targetSquare);
+      Piece target_piece = board.get_piece_at(targetSquare);
 
-      if(target_piece.has_value() && colorOf(target_piece.value()) == colorOf(piece)) continue;
+      if(target_piece != Piece::NONE && colorOf(target_piece) == colorOf(piece)) continue;
 
-      moves[move_count++] = Move{piece, index, (uint8_t) targetSquare, target_piece, std::nullopt, false, false};
+      moves[move_count++] = Move{piece, index, (uint8_t) targetSquare, target_piece, Piece::NONE, false, false};
      }
 }
 
@@ -276,11 +276,11 @@ void Engine::generate_king_moves(const Board &board, Piece piece, uint8_t index,
       int fileDiff = (targetSquare % 8) - (index % 8);
       if (std::abs(fileDiff) > 1) continue; // illegal wrap
       
-      std::optional<Piece> target_piece = board.get_piece_at(targetSquare);
+      Piece target_piece = board.get_piece_at(targetSquare);
 
-      if(target_piece.has_value() && colorOf(target_piece.value()) == colorOf(piece)) continue;
+      if(target_piece != Piece::NONE && colorOf(target_piece) == colorOf(piece)) continue;
 
-      moves[move_count++] = Move{piece, index, (uint8_t)targetSquare, target_piece, std::nullopt, false, false};
+      moves[move_count++] = Move{piece, index, (uint8_t)targetSquare, target_piece, Piece::NONE, false, false};
     }
 
     //Add in castle moves
@@ -332,14 +332,14 @@ void Engine::generate_castle_moves(const Board &board, Piece piece, uint8_t inde
 
         // 2. Rook must still be there
         auto rook = board.get_piece_at(cs.rookSquare);
-        if (!rook.has_value()) {
+        if (rook == Piece::NONE) {
             continue;
         }
 
         // 3. Squares must be empty
         bool empty_ok = true;
         for (int sq : cs.emptySquares) {
-            if (sq != -1 && board.get_piece_at(sq).has_value()) {
+            if (sq != -1 && board.get_piece_at(sq) != Piece::NONE) {
                 empty_ok = false;
                 break;
             }
@@ -358,11 +358,11 @@ void Engine::generate_castle_moves(const Board &board, Piece piece, uint8_t inde
 
         // 5. Add castling move
         moves[move_count++] = Move{
-            board.get_piece_at(cs.kingFrom).value(),
+            board.get_piece_at(cs.kingFrom),
             (uint8_t)cs.kingFrom,
             (uint8_t)cs.kingTo,
-            std::nullopt,
-            std::nullopt,
+            Piece::NONE,
+            Piece::NONE,
             false,
             true  // is_castle
         };
@@ -385,8 +385,8 @@ void Engine::extract_pawn_push(Bitboard bb, Piece piece, int shift, Move* moves,
             piece,
             (uint8_t) (to-shift),
             (uint8_t) to,
-            std::nullopt,
-            std::nullopt,
+            Piece::NONE,
+            Piece::NONE,
             false,
             false
         };
@@ -405,7 +405,7 @@ void Engine::extract_pawn_capture(Bitboard bb, Piece piece, int shift, Move *mov
             (uint8_t) (to - shift),
             (uint8_t) (to),
             board.get_piece_at(to),
-            std::nullopt,
+            Piece::NONE,
             false,
             false
         };
@@ -425,10 +425,10 @@ void Engine::extract_promotion_push(Bitboard bb, Piece piece, int shift, Move *m
         //Clear the bit we just processed
         bb &= (bb - 1);
         int from = to - shift;
-        moves[move_count++] = Move{piece, (uint8_t)from, (uint8_t) to, std::nullopt, queen, false, false};
-        moves[move_count++] = Move{piece, (uint8_t)from, (uint8_t) to, std::nullopt, rook, false, false};
-        moves[move_count++] = Move{piece, (uint8_t)from, (uint8_t) to, std::nullopt, bishop, false, false};
-        moves[move_count++] = Move{piece, (uint8_t)from, (uint8_t) to, std::nullopt, knight, false, false};
+        moves[move_count++] = Move{piece, (uint8_t)from, (uint8_t) to, Piece::NONE, queen, false, false};
+        moves[move_count++] = Move{piece, (uint8_t)from, (uint8_t) to, Piece::NONE, rook, false, false};
+        moves[move_count++] = Move{piece, (uint8_t)from, (uint8_t) to, Piece::NONE, bishop, false, false};
+        moves[move_count++] = Move{piece, (uint8_t)from, (uint8_t) to, Piece::NONE, knight, false, false};
     }
 }
 
@@ -445,7 +445,7 @@ void Engine::extract_promotion_capture(Bitboard bb, Piece piece, int shift, Move
         //Clear the bit we just processed
         bb &= (bb - 1);
         int from = to - shift;
-        std::optional<Piece> capture = board.get_piece_at(to);
+        Piece capture = board.get_piece_at(to);
         moves[move_count++] = Move{piece, (uint8_t)from, (uint8_t) to, capture, queen, false, false};
         moves[move_count++] = Move{piece, (uint8_t)from, (uint8_t) to, capture, rook, false, false};
         moves[move_count++] = Move{piece, (uint8_t)from, (uint8_t) to, capture, bishop, false, false};

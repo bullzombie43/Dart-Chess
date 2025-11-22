@@ -31,6 +31,7 @@ enum Piece : uint8_t{
     B_ROOK,
     B_QUEEN,
     B_KING,
+    NONE
 };
 
 inline PieceType typeOf(Piece p) {
@@ -74,15 +75,15 @@ struct Move {
     uint8_t piece;
     uint8_t from_square;
     uint8_t to_square;
-    std::optional<Piece> captured_piece;
-    std::optional<Piece> promoted_piece;
+    Piece captured_piece;
+    Piece promoted_piece;
     bool is_enpassant;
     bool is_castling;
 };
 
 struct Move_State {
     Move move;
-    std::optional<uint8_t> captured_piece;
+    uint8_t captured_piece;
     std::optional<int> enPassantSquare;
     uint8_t castling_rights;
     bool wasPromotion; 
@@ -124,7 +125,7 @@ class Board {
         void undo_move();
         bool is_in_check(Color color);
         bool can_castle(CastlingRights right) const;
-        std::optional<Piece> get_piece_at(int square) const;
+        Piece get_piece_at(int square) const;
         Bitboard get_active_color_bb() const;
         Bitboard get_empty_squares() const;
         bool is_square_attacked(int square, Color attacking_color) const;
@@ -171,3 +172,14 @@ constexpr Bitboard RANK6 = 0xFFULL << 40; // Value: 0x00FF000000000000ULL
 constexpr Bitboard A_FILE = 0x0101010101010101;
 constexpr Bitboard H_FILE = 0x8080808080808080;
 
+// FASTER - use lookup table
+constexpr uint8_t CASTLING_RIGHTS_MASK[64] = {
+    static_cast<uint8_t>(CastlingRights::WHITE_QUEENSIDE), 255, 255, 255, static_cast<uint8_t>(CastlingRights::WHITE_ALL), 255, 255, static_cast<uint8_t>(CastlingRights::WHITE_KINGSIDE),  // rank 1
+    255, 255, 255, 255, 255, 255, 255, 255,  // rank 2
+    255, 255, 255, 255, 255, 255, 255, 255,  // rank 3
+    255, 255, 255, 255, 255, 255, 255, 255,  // rank 4
+    255, 255, 255, 255, 255, 255, 255, 255,  // rank 5
+    255, 255, 255, 255, 255, 255, 255, 255,  // rank 6
+    255, 255, 255, 255, 255, 255, 255, 255,  // rank 7
+    static_cast<uint8_t>(CastlingRights::BLACK_QUEENSIDE), 255, 255, 255, static_cast<uint8_t>(CastlingRights::BLACK_ALL), 255, 255, static_cast<uint8_t>(CastlingRights::BLACK_KINGSIDE),  // rank 8
+};

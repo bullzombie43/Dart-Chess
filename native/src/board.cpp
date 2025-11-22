@@ -70,7 +70,6 @@ void Board::set_position_fen(const std::string &fen)
       enPassantSquare = squareIndexFromAlgebraicConst(en_passant_target_square);
     }
 
-
     //Castling Ability
     castlingRightsState = static_cast<uint8_t>(CastlingRights::NONE);
     castlingRightsState = castling_rights.find("K") != std::string::npos ? castlingRightsState | static_cast<uint8_t>(CastlingRights::WHITE_KINGSIDE) : castlingRightsState; 
@@ -96,17 +95,17 @@ void Board::make_move(Move& move) {
         move.captured_piece,
         enPassantSquare,
         castlingRightsState,
-        move.promoted_piece.has_value()
+        move.promoted_piece != Piece::NONE
     };
 
-    if(move.is_enpassant && move.captured_piece.has_value()){
+    if(move.is_enpassant && move.captured_piece != Piece::NONE){
         int captured_pawn_square = (move.piece == Piece::W_PAWN)
             ? move.to_square - 8
             : move.to_square + 8;
         
-        remove_captured_piece(captured_pawn_square, move.captured_piece.value());
-    } else if (move.captured_piece.has_value()) {
-        remove_captured_piece(move.to_square, move.captured_piece.value());
+        remove_captured_piece(captured_pawn_square, move.captured_piece);
+    } else if (move.captured_piece != Piece::NONE) {
+        remove_captured_piece(move.to_square, move.captured_piece);
     }
 
     //En Passant updates
@@ -139,6 +138,9 @@ void Board::make_move(Move& move) {
         remove_castling_right(CastlingRights::BLACK_KINGSIDE);
     }
 
+    // castlingRightsState &= ~CASTLING_RIGHTS_MASK[move.from_square];
+    // castlingRightsState &= ~CASTLING_RIGHTS_MASK[move.to_square];  // If rook captured
+
     //Castling
     if(move.is_castling){
         castle_move(move);
@@ -152,13 +154,13 @@ void Board::make_move(Move& move) {
     Bitboard endMask = 1ULL << move.to_square;
 
     //Promotion
-    if(move.promoted_piece.has_value()){
+    if(move.promoted_piece != Piece::NONE){
         // Remove pawn from its bitboard (already done in newBitboard)
       bitboard_array[move.piece] = newBitboard; // update pawn board
 
       // Add the promoted piece to its bitboard
-      Bitboard promoBitboard = bitboard_array[move.promoted_piece.value()]; //We know its not none
-      bitboard_array[move.promoted_piece.value()] = promoBitboard | endMask;
+      Bitboard promoBitboard = bitboard_array[move.promoted_piece]; //We know its not none
+      bitboard_array[move.promoted_piece] = promoBitboard | endMask;
     } else { //Normal Logic
         newBitboard = newBitboard | endMask;
         bitboard_array[move.piece] = newBitboard;
@@ -191,8 +193,8 @@ void Board::undo_move() {
     bitboard_array[move.piece] |= 1ULL << move.from_square;
 
     //Restore capture
-    if(last.captured_piece.has_value() && !move.is_enpassant){
-        bitboard_array[last.captured_piece.value()] |= (1ULL << move.to_square);
+    if(last.captured_piece != Piece::NONE && !move.is_enpassant){
+        bitboard_array[last.captured_piece] |= (1ULL << move.to_square);
     }
 
     //Undo special moves (castle, en passant, etc.)
@@ -213,20 +215,20 @@ void Board::undo_move() {
     }
 
     // Undo en passant
-    if (move.is_enpassant && move.captured_piece.has_value()) {
+    if (move.is_enpassant && move.captured_piece != Piece::NONE) {
         int capturedPawnSquare = colorOf(static_cast<Piece>(move.piece)) == Color::WHITE
             ? move.to_square - 8
             : move.to_square + 8;
         Piece capturedPawn = colorOf(static_cast<Piece>(move.piece)) == Color::WHITE
             ? Piece::B_PAWN
             : Piece::W_PAWN;
-        bitboard_array[move.captured_piece.value()] |= (1ULL << capturedPawnSquare);
+        bitboard_array[move.captured_piece] |= (1ULL << capturedPawnSquare);
     }
 
     //undo promotion
-    if (move.promoted_piece.has_value()) {
+    if (move.promoted_piece != Piece::NONE) {
       // Remove the promoted piece from the board
-      bitboard_array[move.promoted_piece.value()] &= ~(1ULL << move.to_square);
+      bitboard_array[move.promoted_piece] &= ~(1ULL << move.to_square);
     }
 
     update_color_bitboard();
@@ -242,7 +244,7 @@ bool Board::can_castle(CastlingRights right) const {
     return (castlingRightsState & static_cast<uint8_t>(right)) != 0; 
 }
 
-std::optional<Piece> Board::get_piece_at(int square) const
+Piece Board::get_piece_at(int square) const
 {
     if(square < 0 || square > 63){
         throw std::invalid_argument("Square must be between 0 and 63");  
@@ -264,7 +266,7 @@ std::optional<Piece> Board::get_piece_at(int square) const
     if((bitboard_array[B_QUEEN] & squareMask) != 0) return Piece::B_QUEEN;
     if((bitboard_array[B_KING] & squareMask) != 0) return Piece::B_KING;
 
-    return std::nullopt;
+    return Piece::NONE;
 }
 
 Bitboard Board::get_active_color_bb() const
@@ -311,10 +313,10 @@ std::string Board::getFen()
     parts[3] = enPassantSquare.has_value() ? index_to_square(enPassantSquare.value()) : "-";
 
     // ---------- 5. Halfmove clock ----------
-    parts[4] = "0";
+    parts[4] = std::to_string(half_move_clock);
 
     // ---------- 6. Fullmove number ----------
-    parts[5] = "1";
+    parts[5] = std::to_string(num_moves_total);
 
     // Join all parts with spaces
     std::ostringstream fen;
@@ -336,16 +338,16 @@ std::string Board::generate_piece_placement_fen()
 
         for(int file = 0; file < 8; ++file) {
             int square = rank * 8 + file;
-            std::optional<Piece> piece = get_piece_at(square);
+            Piece piece = get_piece_at(square);
 
-            if(!piece.has_value()) {
+            if(piece == Piece::NONE) {
                 emptyCount++;
             } else {
                 if(emptyCount > 0) {
                     buffer << emptyCount;
                     emptyCount = 0;
                 }
-                buffer << pieceToChar[piece.value()];
+                buffer << pieceToChar[piece];
             }
         }
 
