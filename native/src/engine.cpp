@@ -14,8 +14,12 @@ int Engine::generate_psuedo_legal_moves(const Board &board, Move* moves)
     int start_piece = (color == Color::WHITE) ? Piece::W_PAWN : Piece::B_PAWN;
     int end_piece = (color == Color::WHITE) ? Piece::W_KING : Piece::B_KING;
 
+    generate_pawn_moves(board, moves, move_count);
+
     for (int p_idx = start_piece; p_idx <= end_piece; ++p_idx) {
         Piece piece = static_cast<Piece>(p_idx);
+
+        if(piece == B_PAWN || piece == W_PAWN) continue;
         
         // 1. Get the Bitboard for the current piece type
         Bitboard pieces_bb = board.get_piece_bitboard(piece);
@@ -86,13 +90,18 @@ uint64_t Engine::perft_divide(Board &board, int depth) {
     for (int i = 0; i < n_moves; i++) {
         board.make_move(move_list[i]);
         uint64_t nodes = perft(board, depth - 1);
+        if(move_to_string(move_list[i]) == "f3c3"){
+            std::cout << "Move From: " << (int) move_list[i].from_square << " Move To: " << (int) move_list[i].to_square << std::endl;
+            board.print_board(std::cout);
+        }
         board.undo_move();
-        
+
         std::cout << move_to_string(move_list[i]) << ": " << nodes << std::endl;
         total += nodes;
     }
     
     std::cout << "\nTotal: " << total << std::endl;
+    return total;
 }
 
 void Engine::generate_moves_from_square(const Board &board, Piece piece, uint8_t index, Move* moves, int& move_count)
@@ -101,8 +110,6 @@ void Engine::generate_moves_from_square(const Board &board, Piece piece, uint8_t
         generate_knight_moves(board, piece, index, moves, move_count);
     } else if(piece == Piece::W_KING || piece == Piece::B_KING){
         generate_king_moves(board, piece, index, moves, move_count);
-    } else if (piece == Piece::W_PAWN || piece == Piece::B_PAWN){
-        generate_pawn_moves(board, piece, index, moves, move_count);
     } else {
         generate_sliding_moves(board, piece, index, moves, move_count);
     }
@@ -121,16 +128,16 @@ void Engine::generate_sliding_moves(const Board &board, Piece piece, uint8_t ind
       for(int n = 0; n < num_squares_to_edge[index][directionIndex]; n++){
         int targetSquare = index + direction_offsets[directionIndex] * (n+1);
 
+        //This prolly unnecessary caus num_squares_to_edge
         if(targetSquare < 0 || targetSquare > 63) break;
-
 
         const Bitboard target_bit = 1ULL << targetSquare;
         
-        if((same_color & target_bit) != 0){
-          break;
+        if((same_color & target_bit) != 0ULL){
+            break;
         }
 
-        if((opp_color & target_bit) != 0){
+        if((opp_color & target_bit) != 0ULL){
             auto captured_piece = board.get_piece_at(targetSquare);
             // Construct the Move struct and add it to the list
             moves[move_count++] = Move{
@@ -159,67 +166,79 @@ void Engine::generate_sliding_moves(const Board &board, Piece piece, uint8_t ind
     }
 }
 
-void Engine::generate_pawn_moves(const Board &board, Piece piece, uint8_t index, Move* moves, int& move_count)
+void Engine::generate_pawn_moves(const Board &board, Move* moves, int& move_count)
 {
-    Color our_color = colorOf(piece);
+    Color us = board.sideToMove;
+    Color them = us == Color::WHITE ? Color::BLACK : Color::WHITE;
 
-    int direction = our_color == Color::WHITE ? 8 : -8;
-    int leftCap = (our_color == Color::WHITE ? +7 : -9);
-    int rightCap = (our_color == Color::WHITE ? +9 : -7);
+    Piece our_piece = us == Color::WHITE ? Piece::W_PAWN : Piece::B_PAWN;
 
-    int start_rank = (our_color == Color::WHITE ? 1 : 6);     // rank 2 or rank 7
-    int promo_rank = (our_color == Color::WHITE ? 7 : 0);     // rank 8 or rank 1
-    int ep_direction = direction;
+    // Direction constants
+    const int UP = (us == Color::WHITE) ? 8 : -8;
+    const int UP_RIGHT = (us == Color::WHITE) ? 9 : -9;
+    const int UP_LEFT = (us == Color::WHITE) ? 7 : -7;
 
-    int single_push = index + direction;
+    //Bitboards
+    Bitboard our_pawns = board.get_piece_bitboard(our_piece);
+    Bitboard empty = ~(board.white_occupancy | board.black_occupancy);
+    Bitboard enemies = us == Color::WHITE ? board.black_occupancy : board.white_occupancy;
 
-    // ---------- 1. FORWARD MOVES ----------
-    if(single_push >= 0 && single_push < 64 && !board.get_piece_at(single_push).has_value()){
-        if(rankOf(single_push) == promo_rank){
-            for (Piece promo : promotion_pieces(our_color)) {
-                moves[move_count++] = Move{piece, (uint8_t)index, (uint8_t)single_push, std::nullopt, promo, false, true};
-            }
-        } else {
-            moves[move_count++]= Move{piece, index, static_cast<uint8_t>(single_push), std::nullopt, std::nullopt, false, false};
+    Bitboard pawns_not_on_7th = our_pawns & ~(us == Color::WHITE ? RANK7 : RANK2);
+    Bitboard pawns_on_7th = our_pawns & (us == Color::WHITE ? RANK7 : RANK2);
 
-            if(rankOf(index) == start_rank){
-                int double_push = index + 2*direction;
-                if(double_push >= 0 && double_push < 64 && !board.get_piece_at(double_push).has_value()){
-                    moves[move_count++] = Move{piece, index, static_cast<uint8_t>(double_push), std::nullopt, std::nullopt, false, false};
-                }
-            }
+    //Single and double push
+    Bitboard single_push = shift(pawns_not_on_7th, UP) & empty;
+    extract_pawn_push(single_push, our_piece, UP, moves, move_count);
+
+    Bitboard double_pawns = single_push & (us == Color::WHITE ? RANK3 : RANK6);
+    Bitboard double_push = shift(double_pawns, UP) & empty;
+    extract_pawn_push(double_push, our_piece, UP*2, moves, move_count);
+
+    //Captures right (excluding H file for white, A file for black)
+    Bitboard capture_right_exclude = (us == Color::WHITE) ? ~H_FILE : ~A_FILE;
+    Bitboard capture_right = shift(pawns_not_on_7th & capture_right_exclude, UP_RIGHT) & enemies;
+    extract_pawn_capture(capture_right, our_piece, UP_RIGHT, moves, move_count, board);
+
+    // Captures left (excluding A file for white, H file for black)
+    Bitboard capture_left_exclude = (us == Color::WHITE) ? ~A_FILE : ~H_FILE;
+    Bitboard capture_left = shift(pawns_not_on_7th & capture_left_exclude, UP_LEFT) & enemies;
+    extract_pawn_capture(capture_left, our_piece, UP_LEFT, moves, move_count, board);
+
+    if(board.enPassantSquare.has_value()){
+        Bitboard ep_target = 1ULL << board.enPassantSquare.value();
+
+        Bitboard ep_right = shift(pawns_not_on_7th & capture_right_exclude, UP_RIGHT) & ep_target;
+
+        if (ep_right) {
+            int to = board.enPassantSquare.value();
+            int from = to - UP_RIGHT;
+            Piece captured = (us == Color::WHITE) ? Piece::B_PAWN : Piece::W_PAWN;
+            moves[move_count++] = Move{our_piece, (uint8_t) from, (uint8_t) to, captured, std::nullopt, true, false};
+        }
+
+        Bitboard ep_left = shift(pawns_not_on_7th & capture_left_exclude, UP_LEFT) & ep_target;
+
+        if (ep_left) {
+            int to = board.enPassantSquare.value();
+            int from = to - UP_LEFT;
+            Piece captured = (us == Color::WHITE) ? Piece::B_PAWN : Piece::W_PAWN;
+            moves[move_count++] = Move{our_piece, (uint8_t) from, (uint8_t) to, captured, std::nullopt, true, false};
         }
     }
 
-    // ---------- 2. CAPTURE MOVES ----------
-    for(int diag_offset : {leftCap,rightCap}){
-        int target = index + diag_offset;
-        if (target < 0 || target >= 64) continue;
-        std::optional<Piece> target_piece = board.get_piece_at(target);
+    //PROMOTION
 
-        // Check file wrapping
-        int fileDiff = ((index+diag_offset) % 8) - (index % 8);
+    //Pushes
+    Bitboard promo_push = shift(pawns_on_7th, UP) & empty;
+    extract_promotion_push(promo_push, our_piece, UP, moves, move_count);
 
-        if (std::abs(fileDiff) != 1) continue;
-
-        //Normal
-        if(target_piece != std::nullopt && colorOf(target_piece.value()) != our_color){
-            if(rankOf(target) == promo_rank){
-                for (Piece promo : promotion_pieces(our_color)) {
-                    moves[move_count++] = Move{piece, (uint8_t)index, (uint8_t)target, target_piece, promo, false, true};
-                }
-            } else {
-                moves[move_count++] = Move{piece, index, (uint8_t) target, target_piece, std::nullopt, false, false};
-            }
-        }
-
-        // ---------- 3. EN PASSANT ----------
-        if(board.enPassantSquare.has_value() && target == board.enPassantSquare.value() && board.color_can_en_passant == our_color){
-            int ep_index = target + (our_color == Color::WHITE ? -8 : +8);
-            std::optional<Piece> ep_piece = (ep_index >= 0 && ep_index < 64) ? board.get_piece_at(ep_index) : std::nullopt;
-            moves[move_count++] = Move{piece, index, (uint8_t) target, ep_piece, std::nullopt, true, false};
-        }
-    }
+     // Promotion captures right
+    Bitboard promo_cap_right = shift(pawns_on_7th & capture_right_exclude, UP_RIGHT) & enemies;
+    extract_promotion_capture(promo_cap_right, our_piece , UP_RIGHT, moves, move_count, board);
+    
+    // Promotion captures left
+    Bitboard promo_cap_left = shift(pawns_on_7th & capture_left_exclude, UP_LEFT) & enemies;
+    extract_promotion_capture(promo_cap_left, our_piece, UP_LEFT, moves, move_count, board);
 
 }
 
@@ -297,17 +316,25 @@ void Engine::generate_castle_moves(const Board &board, Piece piece, uint8_t inde
 
     for (const auto& cs : castleData) {
 
-        // Only evaluate rights for the correct color
-        if ((color == Color::WHITE && cs.right >= CastlingRights::BLACK_KINGSIDE) ||
-            (color == Color::BLACK && cs.right <= CastlingRights::WHITE_QUEENSIDE))
-            continue;
+        // Determine the color of this castling right
+        Color castleColor = (cs.right == CastlingRights::WHITE_KINGSIDE || 
+                            cs.right == CastlingRights::WHITE_QUEENSIDE) 
+                            ? Color::WHITE : Color::BLACK;
+
+        // Skip if colors don't match
+        if (castleColor != color) continue;
+
 
         // 1. Check castling right flag
-        if (!board.can_castle(cs.right)) continue;
+        if (!board.can_castle(cs.right)) {
+            continue;
+        }
 
         // 2. Rook must still be there
         auto rook = board.get_piece_at(cs.rookSquare);
-        if (!rook.has_value()) continue;
+        if (!rook.has_value()) {
+            continue;
+        }
 
         // 3. Squares must be empty
         bool empty_ok = true;
@@ -342,8 +369,86 @@ void Engine::generate_castle_moves(const Board &board, Piece piece, uint8_t inde
     }
 }
 
-Bitboard Engine::shift(Bitboard board, Direction direction)
+Bitboard Engine::shift(Bitboard board, int shift)
 {
-    return (board << static_cast<int>(direction));
+    return (shift > 0) ? (board << shift) : (board >> -shift);
 }
 
+void Engine::extract_pawn_push(Bitboard bb, Piece piece, int shift, Move* moves, int& move_count)
+{
+    while(bb != 0ULL){
+        int to = std::countr_zero(bb);
+        //Clear the bit we just processed
+        bb &= (bb - 1);
+
+        moves[move_count++] = Move{
+            piece,
+            (uint8_t) (to-shift),
+            (uint8_t) to,
+            std::nullopt,
+            std::nullopt,
+            false,
+            false
+        };
+    }
+}
+
+void Engine::extract_pawn_capture(Bitboard bb, Piece piece, int shift, Move *moves, int &move_count, const Board &board)
+{
+    while(bb != 0ULL){
+        int to = std::countr_zero(bb);
+        //Clear the bit we just processed
+        bb &= (bb - 1);
+
+        moves[move_count++] = Move{
+            piece,
+            (uint8_t) (to - shift),
+            (uint8_t) (to),
+            board.get_piece_at(to),
+            std::nullopt,
+            false,
+            false
+        };
+    }
+}
+
+void Engine::extract_promotion_push(Bitboard bb, Piece piece, int shift, Move *moves, int &move_count)
+{
+    Color us = colorOf(piece);
+    Piece queen = (us == Color::WHITE) ? Piece::W_QUEEN : Piece::B_QUEEN;
+    Piece rook = (us == Color::WHITE) ? Piece::W_ROOK : Piece::B_ROOK;
+    Piece bishop = (us == Color::WHITE) ? Piece::W_BISHOP : Piece::B_BISHOP;
+    Piece knight = (us == Color::WHITE) ? Piece::W_KNIGHT : Piece::B_KNIGHT;
+
+    while (bb != 0ULL) {
+        int to = std::countr_zero(bb);
+        //Clear the bit we just processed
+        bb &= (bb - 1);
+        int from = to - shift;
+        moves[move_count++] = Move{piece, (uint8_t)from, (uint8_t) to, std::nullopt, queen, false, false};
+        moves[move_count++] = Move{piece, (uint8_t)from, (uint8_t) to, std::nullopt, rook, false, false};
+        moves[move_count++] = Move{piece, (uint8_t)from, (uint8_t) to, std::nullopt, bishop, false, false};
+        moves[move_count++] = Move{piece, (uint8_t)from, (uint8_t) to, std::nullopt, knight, false, false};
+    }
+}
+
+void Engine::extract_promotion_capture(Bitboard bb, Piece piece, int shift, Move *moves, int &move_count, const Board &board)
+{
+    Color us = colorOf(piece);
+    Piece queen = (us == Color::WHITE) ? Piece::W_QUEEN : Piece::B_QUEEN;
+    Piece rook = (us == Color::WHITE) ? Piece::W_ROOK : Piece::B_ROOK;
+    Piece bishop = (us == Color::WHITE) ? Piece::W_BISHOP : Piece::B_BISHOP;
+    Piece knight = (us == Color::WHITE) ? Piece::W_KNIGHT : Piece::B_KNIGHT;
+
+    while (bb != 0ULL) {
+        int to = std::countr_zero(bb);
+        //Clear the bit we just processed
+        bb &= (bb - 1);
+        int from = to - shift;
+        std::optional<Piece> capture = board.get_piece_at(to);
+        moves[move_count++] = Move{piece, (uint8_t)from, (uint8_t) to, capture, queen, false, false};
+        moves[move_count++] = Move{piece, (uint8_t)from, (uint8_t) to, capture, rook, false, false};
+        moves[move_count++] = Move{piece, (uint8_t)from, (uint8_t) to, capture, bishop, false, false};
+        moves[move_count++] = Move{piece, (uint8_t)from, (uint8_t) to, capture, knight, false, false};
+    }
+}

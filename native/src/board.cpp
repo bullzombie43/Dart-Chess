@@ -70,18 +70,21 @@ void Board::set_position_fen(const std::string &fen)
       enPassantSquare = squareIndexFromAlgebraicConst(en_passant_target_square);
     }
 
+
     //Castling Ability
     castlingRightsState = static_cast<uint8_t>(CastlingRights::NONE);
-    castlingRightsState = castling_rights.find("K") ? castlingRightsState | static_cast<uint8_t>(CastlingRights::WHITE_KINGSIDE) : castlingRightsState; 
-    castlingRightsState = castling_rights.find("Q") ? castlingRightsState | static_cast<uint8_t>(CastlingRights::WHITE_QUEENSIDE) : castlingRightsState; 
-    castlingRightsState = castling_rights.find("k") ? castlingRightsState | static_cast<uint8_t>(CastlingRights::BLACK_KINGSIDE) : castlingRightsState;  
-    castlingRightsState = castling_rights.find("q") ? castlingRightsState | static_cast<uint8_t>(CastlingRights::BLACK_QUEENSIDE) : castlingRightsState;    
+    castlingRightsState = castling_rights.find("K") != std::string::npos ? castlingRightsState | static_cast<uint8_t>(CastlingRights::WHITE_KINGSIDE) : castlingRightsState; 
+    castlingRightsState = castling_rights.find("Q") != std::string::npos ? castlingRightsState | static_cast<uint8_t>(CastlingRights::WHITE_QUEENSIDE) : castlingRightsState; 
+    castlingRightsState = castling_rights.find("k") != std::string::npos ? castlingRightsState | static_cast<uint8_t>(CastlingRights::BLACK_KINGSIDE) : castlingRightsState;  
+    castlingRightsState = castling_rights.find("q") != std::string::npos ? castlingRightsState | static_cast<uint8_t>(CastlingRights::BLACK_QUEENSIDE) : castlingRightsState;    
 
     //Half Move Clock
     this->half_move_clock = std::stoi(half_move_clock);
 
     //Full Move Count
     this->num_moves_total = std::stoi(num_moves_total);
+
+    update_color_bitboard();
 }
 
 //We assume a move passed into here is valid
@@ -236,7 +239,7 @@ bool Board::is_in_check(Color color) {
 
 bool Board::can_castle(CastlingRights right) const {
     //if can castle 1 bit = 1, so non-zero = true, else all 0 = false
-    return castlingRightsState & static_cast<uint8_t>(right); 
+    return (castlingRightsState & static_cast<uint8_t>(right)) != 0; 
 }
 
 std::optional<Piece> Board::get_piece_at(int square) const

@@ -163,5 +163,11 @@ constexpr int squareIndexFromAlgebraicConst(const std::string notation) {
     return (notation[1] - '1') * 8 + (notation[0] - 'a');
 }
 
-constexpr Bitboard RANK3 = 0xFFULL << 16; // Value: 0x0000000000FF0000ULL
+constexpr Bitboard RANK2 = 0xFFULL << 8; // Value: 0x0000000000FF0000ULL
 constexpr Bitboard RANK7 = 0xFFULL << 48; // Value: 0x00FF000000000000ULL
+constexpr Bitboard RANK3 = 0xFFULL << 16; // Value: 0x0000000000FF0000ULL
+constexpr Bitboard RANK6 = 0xFFULL << 40; // Value: 0x00FF000000000000ULL
+
+constexpr Bitboard A_FILE = 0x0101010101010101;
+constexpr Bitboard H_FILE = 0x8080808080808080;
+

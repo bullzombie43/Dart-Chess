@@ -35,7 +35,7 @@ class Engine{
         void generate_moves_from_square(const Board& board, Piece piece, uint8_t index, Move* moves, int& move_count);
 
         void generate_sliding_moves(const Board& board, Piece piece, uint8_t index, Move* moves, int& move_count);
-        void generate_pawn_moves(const Board& board, Piece piece, uint8_t index, Move* moves, int& move_count);
+        void generate_pawn_moves(const Board& board, Move* moves, int& move_count);
         void generate_knight_moves(const Board& board, Piece piece, uint8_t index, Move* moves, int& move_count);
         void generate_king_moves(const Board& board, Piece piece, uint8_t index, Move* moves, int& move_count);
         void generate_castle_moves(const Board& board, Piece piece, uint8_t index, Move* moves, int& move_count);
@@ -47,9 +47,12 @@ class Engine{
             West = -1
         };
 
-        Bitboard shift(Bitboard board, Direction direction);
-        void extract_pawn_push(Bitboard board, int shift, std::vector<Move>& moves);
-        std::string generate_fen_piece_placement();
+        Bitboard shift(Bitboard board, int direction);
+        void extract_pawn_push(Bitboard bb, Piece piece, int shift, Move* moves, int& move_count);
+        void extract_pawn_capture(Bitboard bb, Piece piece, int shift, Move* moves, int& move_count, const Board& board);
+        void extract_promotion_push(Bitboard bb, Piece piece, int shift, Move* moves, int& move_count);
+        void extract_promotion_capture(Bitboard bb, Piece piece, int shift, Move* moves, int& move_count, const Board& board);
+        
 };
 
 inline std::array<Piece,4> promotion_pieces(Color c) {
