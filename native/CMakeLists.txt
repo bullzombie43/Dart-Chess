@@ -7,10 +7,20 @@
     set(CMAKE_CXX_EXTENSIONS OFF)
 
     # ASAN
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -ggdb -fsanitize=address,undefined -fno-omit-frame-pointer")
-    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -ggdb -fsanitize=address,undefined -fno-omit-frame-pointer")
-    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -ggdb -fsanitize=address,undefined -fno-omit-frame-pointer")
-    set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -ggdb -fsanitize=address,undefined -fno-omit-frame-pointer")
+    # Conditional compilation flags based on build type
+    if(CMAKE_BUILD_TYPE MATCHES Debug)
+        # Debug: Enable ASan and debug symbols
+        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -ggdb -fsanitize=address,undefined -fno-omit-frame-pointer")
+        set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -ggdb -fsanitize=address,undefined -fno-omit-frame-pointer")
+        set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -fsanitize=address,undefined")
+        set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -fsanitize=address,undefined")
+        message(STATUS "Building in DEBUG mode with ASan")
+    else()
+        # Release: Optimize aggressively, no debug info, no ASan
+        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3 -march=native -DNDEBUG")
+        set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -O3 -march=native -DNDEBUG")
+        message(STATUS "Building in RELEASE mode with optimizations")
+    endif()
 
     #GTest
     include(FetchContent)
