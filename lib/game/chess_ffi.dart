@@ -151,8 +151,8 @@ typedef ChessMoveToStringDart = ffi.Pointer<ffi.Char> Function(
 typedef ChessFreeStringNative = ffi.Void Function(ffi.Pointer<ffi.Char>);
 typedef ChessFreeStringDart = void Function(ffi.Pointer<ffi.Char>);
 
-typedef ChessPerftNative = ffi.Uint64 Function(ChessBoardHandle, ffi.Int32);
-typedef ChessPerftDart = int Function(ChessBoardHandle, int);
+typedef ChessPerftNative = ffi.Uint64 Function(ChessEngineHandle, ChessBoardHandle, ffi.Int32);
+typedef ChessPerftDart = int Function(ChessEngineHandle, ChessBoardHandle, int);
 
 // ============================================================================
 // DART BINDINGS (looked up from native library)
