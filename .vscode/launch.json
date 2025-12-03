@@ -55,6 +55,25 @@
             "environment": [],
             "externalConsole": false,
             "MIMode": "lldb"
+        },
+        // Bridge Tests
+        {
+            "name": "Bridge Unit Tests (Debug)",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/native/build/bridge_test",
+            "args": [],
+            "stopAtEntry": false,
+            "cwd": "${workspaceFolder}/native/build/",
+            "preLaunchTask": "build_bridge_tests",
+            "environment": [
+                {
+                    "name": "ASAN_OPTIONS",
+                    "value": "detect_leaks=1:leak_check_at_exit=1:log_path=/tmp/asan.log"
+                }
+            ],
+            "externalConsole": false,
+            "MIMode": "lldb"
         }
     ],
     "version": "2.0.0"

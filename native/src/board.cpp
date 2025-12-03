@@ -174,7 +174,8 @@ void Board::make_move(Move& move) {
 
 void Board::undo_move() {
     if(history_ply == 0){
-        throw std::invalid_argument("Tried to invoke undo_move when move_history was empty");
+        //throw std::invalid_argument("Tried to invoke undo_move when move_history was empty");
+        return;
     }
 
     Move_State last = move_history[--history_ply];

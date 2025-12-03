@@ -43,6 +43,14 @@
         src/engine.cpp
     )
 
+    #Bridge source files (NEW!)
+    set(BRIDGE_SOURCES
+        bridge/chess_bridge.cpp
+        src/board.cpp
+        src/utils.cpp
+        src/engine.cpp
+    )   
+
     #GTest Executable
     enable_testing()
 
@@ -71,8 +79,50 @@
         GTest::gtest_main
     )
 
+    #Bridge test executable (NEW!)
+    add_executable(
+        bridge_test
+        bridge/chess_bridge_test.cpp
+        ${BRIDGE_SOURCES}
+    )
+
+    target_link_libraries(
+        bridge_test
+        GTest::gtest_main
+    )
+
     include(GoogleTest)
     gtest_discover_tests(board_test)
+    gtest_discover_tests(engine_test)
+    gtest_discover_tests(bridge_test)
     
     # Create executable
     add_executable(chess_engine ${SOURCES}) 
+
+    # ============================================================================
+    # SHARED LIBRARY FOR FLUTTER FFI (NEW!)
+    # ============================================================================
+
+    # Build bridge as a shared library
+    add_library(chess_bridge SHARED ${BRIDGE_SOURCES})
+
+    # Set library output name (will create libchess_bridge.dylib on macOS, etc.)
+    set_target_properties(chess_bridge PROPERTIES
+        OUTPUT_NAME "chess_bridge"
+        VERSION 1.0.0
+        SOVERSION 1
+    )
+
+    # On macOS, set the install name for the dylib
+    if(APPLE)
+        set_target_properties(chess_bridge PROPERTIES
+            MACOSX_RPATH TRUE
+            INSTALL_NAME_DIR "@rpath"
+        )
+    endif()
+
+    # Install the library (optional, for now just build it)
+    install(TARGETS chess_bridge
+        LIBRARY DESTINATION lib
+        RUNTIME DESTINATION bin
+    )
