@@ -120,6 +120,12 @@ typedef ChessBoardGetSideToMoveDart = int Function(ChessBoardHandle);
 typedef ChessBoardIsInCheckNative = ffi.Uint8 Function(ChessBoardHandle);
 typedef ChessBoardIsInCheckDart = int Function(ChessBoardHandle);
 
+typedef ChessBoardIsCheckmateNative = ffi.Uint8 Function(ChessEngineHandle, ChessBoardHandle);
+typedef ChessBoardIsCheckmateDart= int Function(ChessEngineHandle, ChessBoardHandle);
+
+typedef ChessBoardIsStalemateeNative = ffi.Uint8 Function(ChessEngineHandle, ChessBoardHandle);
+typedef ChessBoardIsStalemateeDart= int Function(ChessEngineHandle, ChessBoardHandle);
+
 typedef ChessBoardMakeMoveNative = ffi.Void Function(
   ChessBoardHandle,
   ffi.Pointer<CMove>,
@@ -198,6 +204,16 @@ final chessBoardIsInCheck = _nativeLib
     .lookup<ffi.NativeFunction<ChessBoardIsInCheckNative>>(
         'board_is_in_check')
     .asFunction<ChessBoardIsInCheckDart>();
+
+final chessBoardIsCheckmate = _nativeLib
+  .lookup<ffi.NativeFunction<ChessBoardIsCheckmateNative>>(
+      'board_is_checkmate')
+  .asFunction<ChessBoardIsCheckmateDart>();
+
+final chessBoardIsStalemate = _nativeLib
+  .lookup<ffi.NativeFunction<ChessBoardIsStalemateeNative>>(
+      'board_is_stalemate')
+  .asFunction<ChessBoardIsStalemateeDart>();
 
 final chessBoardMakeMove = _nativeLib
     .lookup<ffi.NativeFunction<ChessBoardMakeMoveNative>>(

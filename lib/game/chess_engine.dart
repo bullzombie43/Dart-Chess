@@ -248,12 +248,18 @@ class ChessEngine {
 
   /// Checks if is the current color to move is in stalemate 
   bool isStalemate(ChessBoard board){
-    return false;
+    _checkDisposed();
+    board._checkDisposed();
+
+    return ffi_bindings.chessBoardIsStalemate(_handle, board._handle) == 1 ? true : false;
   }
 
   /// Checks if is the current color to move is in stalemate 
   bool isCheckmate(ChessBoard board){
-    return false;
+    _checkDisposed();
+    board._checkDisposed();
+
+    return ffi_bindings.chessBoardIsCheckmate(_handle, board._handle) == 1 ? true : false;
   }
 
   /// Run perft test (for debugging)

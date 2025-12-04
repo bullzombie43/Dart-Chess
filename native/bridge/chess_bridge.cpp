@@ -1,6 +1,7 @@
 #include "chess_bridge.h"
 #include "board.h"
 #include "engine.h"
+#include <iostream>
 
 static inline Board* handle_to_board(ChessBoardHandle handle){
     return static_cast<Board*>(handle);
@@ -282,15 +283,39 @@ uint8_t board_is_checkmate(ChessEngineHandle engine_handle, ChessBoardHandle boa
         throw std::runtime_error("Handle Cannot be null in board_is_checkmate");
     }
 
-    // Board* board = handle_to_board(board_handle);
-    // Engine* engine = handle_to_engine(engine_handle);
+    Board* board = handle_to_board(board_handle);
+    Engine* engine = handle_to_engine(engine_handle);
 
-    // // Allocate temporary buffer for C++ moves
-    // Move cpp_moves[MAX_LEGAL_MOVES];
+    // Allocate temporary buffer for C++ moves
+    Move cpp_moves[MAX_LEGAL_MOVES];
 
-    // int move_count = engine->generate_legal_moves(*board, )
+    int move_count = engine->generate_legal_moves(*board,cpp_moves);
 
-    // return 0;
+    if(move_count == 0 && board->is_in_check(board->sideToMove)){
+        return 1;
+    }
+
+    return 0;
+}
+
+uint8_t board_is_stalemate(ChessEngineHandle engine_handle, ChessBoardHandle board_handle)
+{
+    if (board_handle == nullptr || engine_handle == nullptr) {
+        throw std::runtime_error("Handle Cannot be null in board_is_checkmate");
+    }
+
+    Board* board = handle_to_board(board_handle);
+    Engine* engine = handle_to_engine(engine_handle);
+
+    // Allocate temporary buffer for C++ moves
+    Move cpp_moves[MAX_LEGAL_MOVES];
+
+    int move_count = engine->generate_legal_moves(*board,cpp_moves);
+
+    if(move_count == 0 && !board->is_in_check(board->sideToMove)){
+        return 1;
+    }
+
     return 0;
 }
  

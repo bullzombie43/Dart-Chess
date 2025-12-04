@@ -103,7 +103,29 @@ class _MyHomePageState extends State<MyHomePage> {
     widget.board.makeMove(move);
 
     //Check for checkmate after each move
-    
+    if(widget.engine.isCheckmate(widget.board)){
+      showGameOverDialog(
+        context, 
+        result: widget.board.getSideToMove() == Color.black ? "White Wins" : "Black Wins", 
+        reason: "Checkmate",
+        onNewGame: () {
+          setState(() {
+            widget.board.setFen("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1");
+          });
+        }
+      );
+    } else if (widget.engine.isStalemate(widget.board)){
+        showGameOverDialog(
+          context, 
+          result: "Draw", 
+          reason: "Stalemate",
+          onNewGame: () {
+            setState(() {
+              widget.board.setFen("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1");
+            });
+          }
+        );
+    }
   }
 
   Future<void> handleSquareTap(int index) async {
@@ -149,7 +171,7 @@ class _MyHomePageState extends State<MyHomePage> {
           PieceType? choice = await showPromotionDialog(context, PieceType.fromValue(move.piece).isWhite ? Color.white : Color.black);
           if (choice == null) return; // user cancelled
           print("Entered");
-          widget.board.makeMove(
+          fullPlayerMove(
             Move(
               piece: move.piece,
               fromSquare: move.fromSquare,
@@ -161,7 +183,7 @@ class _MyHomePageState extends State<MyHomePage> {
             )
           );
         } else {
-          widget.board.makeMove(move);
+          fullPlayerMove(move);
         }
 
         // Now update state synchronously
@@ -219,7 +241,7 @@ class _MyHomePageState extends State<MyHomePage> {
       }
 
       if(move != null){
-        widget.board.makeMove(move);
+        fullPlayerMove(move);
       }
 
       highlights.clear();
@@ -325,87 +347,6 @@ class _MyHomePageState extends State<MyHomePage> {
     int rankTo = rankOf(to);
     return (piece == PieceType.wPawn && rankTo == 7) ||
           (piece == PieceType.bPawn && rankTo == 0);
-  }
-
-  void showCheckmateDialog(
-    BuildContext context, {
-    required String winner,
-    required VoidCallback onNewGame,
-  }) {
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(20),
-          ),
-          title: const Column(
-            children: [
-              Icon(
-                Icons.emoji_events,
-                color: Colors.amber,
-                size: 48,
-              ),
-              SizedBox(height: 8),
-              Text(
-                'Checkmate!',
-                style: TextStyle(
-                  fontSize: 28,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ],
-          ),
-          content: Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: winner == 'White' ? Colors.grey[100] : Colors.grey[800],
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  '$winner wins!',
-                  style: TextStyle(
-                    fontSize: 24,
-                    fontWeight: FontWeight.bold,
-                    color: winner == 'White' ? Colors.black : Colors.white,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  'Game Over',
-                  style: TextStyle(
-                    fontSize: 16,
-                    color: winner == 'White' ? Colors.grey[700] : Colors.grey[300],
-                  ),
-                ),
-              ],
-            ),
-          ),
-          actions: [
-            OutlinedButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: const Text('View Board'),
-            ),
-            ElevatedButton(
-              onPressed: () {
-                Navigator.of(context).pop();
-                onNewGame();
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.green,
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-              ),
-              child: const Text('New Game'),
-            ),
-          ],
-          actionsAlignment: MainAxisAlignment.spaceEvenly,
-        );
-      },
-    );
   }
 
   void showGameOverDialog(

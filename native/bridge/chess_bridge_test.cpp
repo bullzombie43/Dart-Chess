@@ -1487,3 +1487,273 @@ TEST(BridgeIntegrationTest, MultipleEnginesAndBoards) {
     board_destroy(board1);
     board_destroy(board2);
 }
+
+/*
+ * =============================================================================
+ * CHECKMATE AND STALEMATE DETECTION TESTS
+ * =============================================================================
+ */
+
+// =============================================================================
+// CHECKMATE TESTS
+// =============================================================================
+
+TEST(BridgeGameOverTest, CheckmateDetection) {
+    ChessEngineHandle engine = engine_create();
+    
+    // Fool's mate - white is checkmated
+    const char* fen = "rnb1kbnr/pppp1ppp/8/4p3/6Pq/5P2/PPPPP2P/RNBQKBNR w KQkq - 1 3";
+    ChessBoardHandle board = board_create_from_fen(fen);
+    ASSERT_NE(board, nullptr);
+    
+    uint8_t is_checkmate = board_is_checkmate(engine, board);
+    EXPECT_EQ(is_checkmate, 1);
+    
+    board_destroy(board);
+    engine_destroy(engine);
+}
+
+TEST(BridgeGameOverTest, NotCheckmateWhenNotInCheck) {
+    ChessEngineHandle engine = engine_create();
+    ChessBoardHandle board = board_create();
+    
+    // Starting position - not checkmate
+    uint8_t is_checkmate = board_is_checkmate(engine, board);
+    EXPECT_EQ(is_checkmate, 0);
+    
+    board_destroy(board);
+    engine_destroy(engine);
+}
+
+TEST(BridgeGameOverTest, NotCheckmateWhenInCheckButCanEscape) {
+    ChessEngineHandle engine = engine_create();
+    
+    // White king in check but can move
+    const char* fen = "4k3/8/8/8/8/8/8/4K2r w - - 0 1";
+    ChessBoardHandle board = board_create_from_fen(fen);
+    ASSERT_NE(board, nullptr);
+    
+    uint8_t is_checkmate = board_is_checkmate(engine, board);
+    EXPECT_EQ(is_checkmate, 0);  // King can move to d2, e2, f2, etc.
+    
+    board_destroy(board);
+    engine_destroy(engine);
+}
+
+TEST(BridgeGameOverTest, BackRankMate) {
+    ChessEngineHandle engine = engine_create();
+    
+    // Classic back rank mate
+    const char* fen = "R5k1/5ppp/8/8/8/8/8/7K b - - 0 1";
+    ChessBoardHandle board = board_create_from_fen(fen);
+    ASSERT_NE(board, nullptr);
+    
+    uint8_t is_checkmate = board_is_checkmate(engine, board);
+    EXPECT_EQ(is_checkmate, 1);
+    
+    board_destroy(board);
+    engine_destroy(engine);
+}
+
+TEST(BridgeGameOverTest, ScholarsMateLikePosition) {
+    ChessEngineHandle engine = engine_create();
+    
+    // Queen and bishop checkmate on f7
+    const char* fen = "r1bqkb1r/pppp1Qpp/2n2n2/4p3/2B1P3/8/PPPP1PPP/RNB1K1NR b KQkq - 0 4";
+    ChessBoardHandle board = board_create_from_fen(fen);
+    ASSERT_NE(board, nullptr);
+    
+    uint8_t is_checkmate = board_is_checkmate(engine, board);
+    EXPECT_EQ(is_checkmate, 1);
+    
+    board_destroy(board);
+    engine_destroy(engine);
+}
+
+// =============================================================================
+// STALEMATE TESTS
+// =============================================================================
+
+TEST(BridgeGameOverTest, StalemateDetection) {
+    ChessEngineHandle engine = engine_create();
+    
+    // Classic stalemate position
+    const char* fen = "k7/8/1Q6/8/8/8/8/7K b - - 0 1";
+    ChessBoardHandle board = board_create_from_fen(fen);
+    ASSERT_NE(board, nullptr);
+    
+    uint8_t is_stalemate = board_is_stalemate(engine, board);
+    EXPECT_EQ(is_stalemate, 1);
+    
+    board_destroy(board);
+    engine_destroy(engine);
+}
+
+TEST(BridgeGameOverTest, NotStalemateWhenHasMoves) {
+    ChessEngineHandle engine = engine_create();
+    ChessBoardHandle board = board_create();
+    
+    // Starting position - has moves
+    uint8_t is_stalemate = board_is_stalemate(engine, board);
+    EXPECT_EQ(is_stalemate, 0);
+    
+    board_destroy(board);
+    engine_destroy(engine);
+}
+
+TEST(BridgeGameOverTest, NotStalemateWhenInCheck) {
+    ChessEngineHandle engine = engine_create();
+    
+    // King in check - not stalemate (it's check, not stalemate)
+    const char* fen = "7k/8/5Q2/8/8/8/8/7K b - - 0 1";
+    ChessBoardHandle board = board_create_from_fen(fen);
+    ASSERT_NE(board, nullptr);
+    
+    uint8_t is_stalemate = board_is_stalemate(engine, board);
+    EXPECT_EQ(is_stalemate, 0);
+    
+    board_destroy(board);
+    engine_destroy(engine);
+}
+
+TEST(BridgeGameOverTest, StalemateKingAndPawn) {
+    ChessEngineHandle engine = engine_create();
+    
+    // Stalemate with pawn blocking own king
+    const char* fen = "7k/5K2/6P1/8/8/8/8/8 b - - 0 1";
+    ChessBoardHandle board = board_create_from_fen(fen);
+    ASSERT_NE(board, nullptr);
+    
+    uint8_t is_stalemate = board_is_stalemate(engine, board);
+    EXPECT_EQ(is_stalemate, 1);
+    
+    board_destroy(board);
+    engine_destroy(engine);
+}
+
+// =============================================================================
+// MUTUAL EXCLUSIVITY (Checkmate vs Stalemate)
+// =============================================================================
+
+TEST(BridgeGameOverTest, PositionCannotBeBothCheckmateAndStalemate) {
+    ChessEngineHandle engine = engine_create();
+    
+    // Test several positions - none should be both
+    const char* positions[] = {
+        "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",  // Starting
+        "rnb1kbnr/pppp1ppp/8/4p3/6Pq/5P2/PPPPP2P/RNBQKBNR w KQkq - 1 3",  // Checkmate
+        "k7/8/1Q6/8/8/8/8/7K b - - 0 1",  // Stalemate
+    };
+    
+    for (const char* fen : positions) {
+        ChessBoardHandle board = board_create_from_fen(fen);
+        ASSERT_NE(board, nullptr);
+        
+        uint8_t checkmate = board_is_checkmate(engine, board);
+        uint8_t stalemate = board_is_stalemate(engine, board);
+        
+        // Cannot be both
+        EXPECT_FALSE(checkmate && stalemate) << "Position: " << fen;
+        
+        board_destroy(board);
+    }
+    
+    engine_destroy(engine);
+}
+
+// =============================================================================
+// NULL SAFETY
+// =============================================================================
+
+TEST(BridgeGameOverTest, CheckmateNullEngine) {
+    ChessBoardHandle board = board_create();
+    
+    EXPECT_THROW(
+        board_is_checkmate(nullptr, board),
+        std::runtime_error
+    );
+    
+    board_destroy(board);
+}
+
+TEST(BridgeGameOverTest, CheckmateNullBoard) {
+    ChessEngineHandle engine = engine_create();
+    
+    EXPECT_THROW(
+        board_is_checkmate(engine, nullptr),
+        std::runtime_error
+    );
+    
+    engine_destroy(engine);
+}
+
+TEST(BridgeGameOverTest, CheckmateBothNull) {
+    EXPECT_THROW(
+        board_is_checkmate(nullptr, nullptr),
+        std::runtime_error
+    );
+}
+
+TEST(BridgeGameOverTest, StalemateNullEngine) {
+    ChessBoardHandle board = board_create();
+    
+    EXPECT_THROW(
+        board_is_stalemate(nullptr, board),
+        std::runtime_error
+    );
+    
+    board_destroy(board);
+}
+
+TEST(BridgeGameOverTest, StalemateNullBoard) {
+    ChessEngineHandle engine = engine_create();
+    
+    EXPECT_THROW(
+        board_is_stalemate(engine, nullptr),
+        std::runtime_error
+    );
+    
+    engine_destroy(engine);
+}
+
+TEST(BridgeGameOverTest, StalemateBothNull) {
+    EXPECT_THROW(
+        board_is_stalemate(nullptr, nullptr),
+        std::runtime_error
+    );
+}
+
+// =============================================================================
+// EDGE CASES
+// =============================================================================
+
+TEST(BridgeGameOverTest, LoneKingsIsStalemate) {
+    ChessEngineHandle engine = engine_create();
+    
+    // Just two kings - stalemate (no legal moves for current player)
+    const char* fen = "8/8/8/4k3/8/8/8/4K3 w - - 0 1";
+    ChessBoardHandle board = board_create_from_fen(fen);
+    ASSERT_NE(board, nullptr);
+    
+    uint8_t is_stalemate = board_is_stalemate(engine, board);
+    // White king has legal moves, so not stalemate for white
+    // But if it's a position where white king has no moves:
+    
+    board_destroy(board);
+    engine_destroy(engine);
+}
+
+TEST(BridgeGameOverTest, CheckmateInCorner) {
+    ChessEngineHandle engine = engine_create();
+    
+    // King checkmated in corner by two rooks
+    const char* fen = "6Rk/6R1/8/8/8/8/8/7K b - - 0 1";
+    ChessBoardHandle board = board_create_from_fen(fen);
+    ASSERT_NE(board, nullptr);
+    
+    uint8_t is_checkmate = board_is_checkmate(engine, board);
+    EXPECT_EQ(is_checkmate, 1);
+    
+    board_destroy(board);
+    engine_destroy(engine);
+}

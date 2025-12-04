@@ -322,7 +322,7 @@ uint8_t board_is_in_check(ChessBoardHandle handle);
  * NOTE: This is more efficient than generating moves and checking
  * the count, as it can short-circuit.
  */
-uint8_t board_is_checkmate(ChessBoardHandle handle);
+uint8_t board_is_checkmate(ChessEngineHandle engine_handle, ChessBoardHandle board_handle);
 
 /**
  * Checks if the current position is stalemate.
@@ -332,7 +332,7 @@ uint8_t board_is_checkmate(ChessBoardHandle handle);
  * 
  * DEFINITION: Stalemate = NOT in check AND no legal moves.
  */
-uint8_t board_is_stalemate(ChessBoardHandle handle);
+uint8_t board_is_stalemate(ChessEngineHandle engine_handle, ChessBoardHandle board_handle);
 
 /*
  * =============================================================================
