@@ -109,6 +109,7 @@
     # Set library output name (will create libchess_bridge.dylib on macOS, etc.)
     set_target_properties(chess_bridge PROPERTIES
         OUTPUT_NAME "chess_bridge"
+        PREFIX "lib"
         VERSION 1.0.0
         SOVERSION 1
     )

@@ -1,4 +1,4 @@
-import 'package:chess_ui/game/game_state.dart';
+import 'package:chess_ui/game/chess_engine.dart';
 import 'package:chess_ui/ui/board_background.dart';
 import 'package:chess_ui/ui/board_builder.dart';
 import 'package:flutter/material.dart';
@@ -9,7 +9,7 @@ class BoardPieces extends StatefulWidget{
 
   final int orientation;
 
-  final GameState state;
+  final ChessBoard board;
 
   /// Called when a piece is tapped.
   final void Function(int)? onTap;
@@ -29,7 +29,7 @@ class BoardPieces extends StatefulWidget{
     super.key,
     this.size = BoardSize.chess,
     this.orientation = 0,
-    required this.state,
+    required this.board,
     this.onTap,
     this.onDragStarted,
     this.onDragCancelled,
@@ -43,19 +43,19 @@ class BoardPieces extends StatefulWidget{
 }
 
 class _BoardPiecesState extends State<BoardPieces> {
-  final Map<Piece, String> assets = {
-    Piece.whitePawn: "assets/pieces/wP.svg",
-    Piece.whiteKnight: "assets/pieces/wN.svg",
-    Piece.whiteBishop: "assets/pieces/wB.svg",
-    Piece.whiteRook: "assets/pieces/wR.svg",
-    Piece.whiteQueen: "assets/pieces/wQ.svg",
-    Piece.whiteKing: "assets/pieces/wK.svg",
-    Piece.blackPawn: "assets/pieces/bP.svg",
-    Piece.blackKnight: "assets/pieces/bN.svg",
-    Piece.blackBishop: "assets/pieces/bB.svg",
-    Piece.blackRook: "assets/pieces/bR.svg",
-    Piece.blackQueen: "assets/pieces/bQ.svg",
-    Piece.blackKing: "assets/pieces/bK.svg",
+  final Map<PieceType, String> assets = {
+    PieceType.wPawn: "assets/pieces/wP.svg",
+    PieceType.wKnight: "assets/pieces/wN.svg",
+    PieceType.wBishop: "assets/pieces/wB.svg",
+    PieceType.wRook: "assets/pieces/wR.svg",
+    PieceType.wQueen: "assets/pieces/wQ.svg",
+    PieceType.wKing: "assets/pieces/wK.svg",
+    PieceType.bPawn: "assets/pieces/bP.svg",
+    PieceType.bKnight: "assets/pieces/bN.svg",
+    PieceType.bBishop: "assets/pieces/bB.svg",
+    PieceType.bRook: "assets/pieces/bR.svg",
+    PieceType.bQueen: "assets/pieces/bQ.svg",
+    PieceType.bKing: "assets/pieces/bK.svg",
   };
 
   @override
@@ -70,11 +70,11 @@ class _BoardPiecesState extends State<BoardPieces> {
   Widget _piece(BuildContext context, int rank, int file, double squareSize){
     int index = widget.size.getSquareIndex(rank, file, widget.orientation);
 
-    bool hasPiece = widget.state.getPieceAt(index) != null;
+    bool hasPiece = widget.board.getPieceAt(index) != PieceType.none;
 
     Widget piece = hasPiece ? 
       PieceWidget(
-        assetPath: assets[widget.state.getPieceAt(index)]!,
+        assetPath: assets[widget.board.getPieceAt(index)]!,
         size: squareSize,
         draggable: true,
         onTap: () => widget.onTap != null ? widget.onTap!(index) : print("tapped"),

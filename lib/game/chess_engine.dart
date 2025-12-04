@@ -75,23 +75,24 @@ enum Color{
 }
 
 enum PieceType{
-  wPawn(ffi_bindings.pieceWPawn, 'P'),
-  wKnight(ffi_bindings.pieceWKnight, 'N'),
-  wBishop(ffi_bindings.pieceWBishop, 'B'),
-  wRook(ffi_bindings.pieceWRook, 'R'),
-  wQueen(ffi_bindings.pieceWQueen, 'Q'),
-  wKing(ffi_bindings.pieceWKing, 'K'),
-  bPawn(ffi_bindings.pieceBPawn, 'p'),
-  bKnight(ffi_bindings.pieceBKnight, 'n'),
-  bBishop(ffi_bindings.pieceBBishop, 'b'),
-  bRook(ffi_bindings.pieceBRook, 'r'),
-  bQueen(ffi_bindings.pieceBQueen, 'q'),
-  bKing(ffi_bindings.pieceBKing, 'k'),
-  none(ffi_bindings.pieceNone, '.');
+  wPawn(ffi_bindings.pieceWPawn, 'P', "wP.svg"),
+  wKnight(ffi_bindings.pieceWKnight, 'N', "wN.svg"),
+  wBishop(ffi_bindings.pieceWBishop, 'B', "wB.svg"),
+  wRook(ffi_bindings.pieceWRook, 'R', "wR.svg"),
+  wQueen(ffi_bindings.pieceWQueen, 'Q', "wQ.svg"),
+  wKing(ffi_bindings.pieceWKing, 'K', "wK.svg"),
+  bPawn(ffi_bindings.pieceBPawn, 'p', "bP.svg"),
+  bKnight(ffi_bindings.pieceBKnight, 'n', "bN.svg"),
+  bBishop(ffi_bindings.pieceBBishop, 'b', "bB.svg"),
+  bRook(ffi_bindings.pieceBRook, 'r', "bR.svg"),
+  bQueen(ffi_bindings.pieceBQueen, 'q', "bQ.svg"),
+  bKing(ffi_bindings.pieceBKing, 'k', "bK.svg"),
+  none(ffi_bindings.pieceNone, '.', "");
 
   final int value;
   final String symbol;
-  const PieceType(this.value, this.symbol);
+  final String asset;
+  const PieceType(this.value, this.symbol, this.asset);
 
   static PieceType fromValue(int value) {
     return values.firstWhere((p) => p.value == value, orElse: () => PieceType.none);
@@ -262,3 +263,9 @@ class ChessEngine {
   
 }
 
+
+
+//HELPER FUNCTIONS
+bool isOnBoard(int square) => square >= 0 && square < 64;
+int rankOf(int square) => square ~/ 8;
+int fileOf(int square) => square % 8;

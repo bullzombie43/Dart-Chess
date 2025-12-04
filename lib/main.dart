@@ -1,9 +1,10 @@
-import 'package:chess_ui/game/game_state.dart';
+import 'package:chess_ui/game/chess_engine.dart';
 import 'package:chess_ui/ui/board_background.dart';
 import 'package:chess_ui/ui/board_pieces.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/svg.dart';
 import 'package:window_manager/window_manager.dart';
+import 'package:flutter/material.dart' as material;
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -24,20 +25,22 @@ void main() async {
     await windowManager.setAspectRatio(1.0);
   });
 
-  GameState state = GameState();
-  //state.setBoardToFen("r3k2r/p1ppqpb1/bn2p1p1/3PN3/1p2n3/P1N2Q1p/1PPBBPPP/R3K2R w KQkq - 0 1");
+  ChessBoard board = ChessBoard();
+  ChessEngine engine = ChessEngine();
 
 
-  runApp(MyApp(state: state));
+  runApp(MyApp(board: board, engine: engine,));
 }
 
 class MyApp extends StatelessWidget {
 
-  final GameState state;
+  final ChessBoard board;
+  final ChessEngine engine;
 
   const MyApp({
     super.key,
-    required this.state
+    required this.board,
+    required this.engine
   });
 
   
@@ -55,20 +58,22 @@ class MyApp extends StatelessWidget {
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
         useMaterial3: true,
       ),
-      home: MyHomePage(title: 'Chess UI', state: state),
+      home: MyHomePage(title: 'Chess UI', board: board, engine: engine,),
     );
   }
 }
 
 class MyHomePage extends StatefulWidget {
-  final GameState state;
+  final ChessBoard board;
+  final ChessEngine engine;
   final BoardSize boardSize;
   final int orientation;
 
   const MyHomePage({
     super.key, 
     required this.title,
-    required this.state,
+    required this.board,
+    required this.engine,
     this.boardSize = BoardSize.chess,
     this.orientation = 0,
   });
@@ -90,64 +95,73 @@ class MyHomePage extends StatefulWidget {
 
 class _MyHomePageState extends State<MyHomePage> {
   Map<int, Marker> markers = {};
-  Map<int, Move> legalMoves = {};
+  Map<int, Move> legalMoves = {}; //The legal moves for the currently selected piece
   int? selectedIndex;
   Map<int, HighlightType> highlights = {};
 
   void fullPlayerMove(Move move){
-    final snapshot = widget.state.clone();
+    widget.board.makeMove(move);
 
-    widget.state.safeMakeMove(move);
-
-    if(widget.state.isKingInCheck(snapshot.turn)){
-      widget.state.restore(snapshot);
-      print("Illegal move – your king would be in check.");
-      
-    }
+    //Check for checkmate after each move
+   
   }
 
   Future<void> handleSquareTap(int index) async {
     // Handle logic before calling setState
     if (selectedIndex == null) {
-      final Piece? piece = widget.state.getPieceAt(index);
-      if (piece != null) {
+      final PieceType piece = widget.board.getPieceAt(index);
+
+      //Update legal moves first
+      legalMoves.clear();
+      List<Move> allPossibleMoves = widget.engine.generateLegalMoves(widget.board);
+
+      for(Move move in allPossibleMoves){
+        if(move.fromSquare == index){
+          legalMoves[move.toSquare] = move;
+        }
+      }
+
+      if (piece != PieceType.none) {
         // Just compute markers (no need for async here)
         final newMarkers = _generateMarkers(
           target: index,
-          state: widget.state,
-          color: piece.color,
+          board: widget.board,
+          engine: widget.engine,
+          color: piece.isWhite ? Color.white : Color.black,
+          legalMoves: legalMoves
         );
 
         setState(() {
           markers = newMarkers;
           selectedIndex = index;
-          highlights = _generateHighlights(state: widget.state);
+          highlights = _generateHighlights(board: widget.board, engine: widget.engine);
         });
       }
     } else {
       // Piece already selected
-      if (markers.containsKey(index)) {
+      if (markers.containsKey(index)) { //index is the ending square which is also the int value in our map
+        print("Index Tapped: $index");
         // Legal move tapped → perform move
         Move move = legalMoves[index]!;
 
         // Check promotion before updating UI
-        if (isPromotionAttempt(movePiece(move), startingSquare(move), endingSquare(move))) {
-          Piece? choice = await showPromotionDialog(context, movePiece(move).color);
+        if (isPromotionAttempt(PieceType.fromValue(move.piece), move.fromSquare, move.toSquare)) {
+          PieceType? choice = await showPromotionDialog(context, PieceType.fromValue(move.piece).isWhite ? Color.white : Color.black);
           if (choice == null) return; // user cancelled
           print("Entered");
-          widget.state.safeMakeMove(
-            makeMoveInt(
-              from: startingSquare(move), 
-              to: endingSquare(move), 
-              movingPiece: movePiece(move), 
-              color: moveColor(move),
-              isCapture: isCapture(move),
-              isEP: isEnPassant(move),
-              promotionPiece: choice
+          widget.board.makeMove(
+            Move(
+              piece: move.piece,
+              fromSquare: move.fromSquare,
+              toSquare: move.toSquare,
+              capturedPiece: move.capturedPiece,
+              promotedPiece: choice.value,
+              isCastling: false,
+              isEnPassant: false
             )
           );
         } else {
-          widget.state.safeMakeMove(move);
+          widget.board.makeMove(move);
         }
 
         // Now update state synchronously
@@ -155,27 +169,39 @@ class _MyHomePageState extends State<MyHomePage> {
           selectedIndex = null;
           markers.clear();
           legalMoves.clear();
-          highlights = _generateHighlights(state: widget.state);
+          highlights = _generateHighlights(board: widget.board, engine: widget.engine);
         });
-      } else if (widget.state.getPieceAt(index) != null && index != selectedIndex) {
-        final newMarkers = _generateMarkers(
-          target: index,
-          state: widget.state,
-          color: widget.state.getPieceAt(index)!.color,
-        );
+      } else if (widget.board.getPieceAt(index) != PieceType.none && index != selectedIndex) {
+          //Regenerate legal moves for the new square
+          legalMoves.clear();
+          List<Move> allPossibleMoves = widget.engine.generateLegalMoves(widget.board);
 
-        setState(() {
-          selectedIndex = index;
-          markers = newMarkers;
-          highlights = _generateHighlights(state: widget.state);
-        });
+          for(Move move in allPossibleMoves){
+            if(move.fromSquare == index){
+              legalMoves[move.toSquare] = move;
+            }
+          }
+
+          final newMarkers = _generateMarkers(
+            target: index,
+            board: widget.board,
+            engine: widget.engine,
+            color: widget.board.getPieceAt(index).isWhite ? Color.white : Color.black,
+            legalMoves: legalMoves
+          );
+
+          setState(() {
+            selectedIndex = index;
+            markers = newMarkers;
+            highlights = _generateHighlights(board: widget.board, engine: widget.engine);
+          });
       } else {
         // Tapped empty/illegal square → deselect
         setState(() {
           selectedIndex = null;
           markers.clear();
           legalMoves.clear();
-          highlights = _generateHighlights(state: widget.state);
+          highlights = _generateHighlights(board: widget.board, engine: widget.engine);
         });
       }
     }
@@ -184,21 +210,21 @@ class _MyHomePageState extends State<MyHomePage> {
   void handlePieceDragEnd(int startIndex, int endIndex){
     setState(() {
       Move? move;
-      List<Move> possibleMoves = widget.state.generatePsuedoLegalMoves(startIndex);
+      List<Move> allPossibleMoves = widget.engine.generateLegalMoves(widget.board);
 
-      for(Move m in possibleMoves){
-        if(startingSquare(m) == startIndex && endingSquare(m) == endIndex){
+      for(Move m in allPossibleMoves){
+        if(m.fromSquare == startIndex && m.toSquare == endIndex){
           move = m;
         }
       }
 
       if(move != null){
-        widget.state.safeMakeMove(move);
+        widget.board.makeMove(move);
       }
 
       highlights.clear();
 
-      highlights = _generateHighlights(state: widget.state);
+      highlights = _generateHighlights(board: widget.board, engine: widget.engine);
     });
   }
 
@@ -211,7 +237,7 @@ class _MyHomePageState extends State<MyHomePage> {
     // fast, so that you can just rebuild anything that needs updating rather
     // than having to individually change instances of widgets.
     return Scaffold(
-      backgroundColor: const Color.fromARGB(255, 140, 208, 161),
+      backgroundColor: const material.Color.fromARGB(255, 140, 208, 161),
       body:  Center(
         // Center is a layout widget. It takes a single child and positions it
         // in the middle of the parent.
@@ -226,7 +252,7 @@ class _MyHomePageState extends State<MyHomePage> {
                 highlights: highlights,
               ),
               BoardPieces(
-                state: widget.state,
+                board: widget.board,
                 size: widget.boardSize,
                 orientation: widget.orientation, 
                 onTap: handleSquareTap, 
@@ -240,56 +266,35 @@ class _MyHomePageState extends State<MyHomePage> {
     );
   }
 
-  Map<int, Marker> _generateMarkers({required int target, required GameState state, required PieceColor color}){
+  Map<int, Marker> _generateMarkers({required int target, required ChessBoard board, required ChessEngine engine, required Color color, required Map<int, Move> legalMoves}){
     Map<int, Marker> markers = {};
 
-    List<Move> legalMoves;
-
-    if(state.turn == color){
-      legalMoves = state.generateFullLegalMoves(target);
-    } else {
-      legalMoves = state.generatePsuedoLegalMoves(target);
+    if(board.getSideToMove() != color){
+      return markers;
     }
     
-
-    for(final Move move in legalMoves){
-      this.legalMoves[endingSquare(move)] = move;
-      HighlightType highlightType = state.isTurnColor(color) ? HighlightType.selected : HighlightType.premove;
-      markers[endingSquare(move)] = isCapture(move) ? Marker.piece(highlightType) : Marker.empty(highlightType);
+    for(final Move move in legalMoves.values){
+      HighlightType highlightType = HighlightType.selected;
+      markers[move.toSquare] = PieceType.fromValue(move.capturedPiece) != PieceType.none ? Marker.piece(highlightType) : Marker.empty(highlightType);
     }
 
     return markers;
   }
 
-  Map<int, HighlightType> _generateHighlights({required GameState state}){
+  Map<int, HighlightType> _generateHighlights({required ChessBoard board, required ChessEngine engine}){
     HighlightType selectionColor = HighlightType.selected;
 
     Map<int, HighlightType> highlights = {};
 
-    if(widget.state.whiteToMove && widget.state.premoveBlack.isNotEmpty){
-        for(Move move in widget.state.premoveBlack){
-          highlights[startingSquare(move)] = HighlightType.premove;
-          highlights[endingSquare(move)] = HighlightType.premove;
-        }
-      }
-
-      if(!widget.state.whiteToMove && widget.state.premoveWhite.isNotEmpty){
-       for(Move move in widget.state.premoveWhite){
-          highlights[startingSquare(move)] = HighlightType.premove;
-          highlights[endingSquare(move)] = HighlightType.premove;
-        }
-      }
-
-
     return highlights;
   }
 
-  Future<Piece?> showPromotionDialog(BuildContext context, PieceColor color) async {
-    List<Piece> promotionChoices = color == PieceColor.WHITE
-        ? [Piece.whiteQueen, Piece.whiteRook, Piece.whiteBishop, Piece.whiteKnight]
-        : [Piece.blackQueen, Piece.blackRook, Piece.blackBishop, Piece.blackKnight];
+  Future<PieceType?> showPromotionDialog(BuildContext context, Color color) async {
+    List<PieceType> promotionChoices = color == Color.white
+        ? [PieceType.wQueen, PieceType.wRook, PieceType.wBishop, PieceType.wKnight]
+        : [PieceType.bQueen, PieceType.bRook, PieceType.bBishop, PieceType.bKnight];
 
-    return await showDialog<Piece>(
+    return await showDialog<PieceType>(
       context: context,
       barrierDismissible: true,
       builder: (context) {
@@ -298,7 +303,7 @@ class _MyHomePageState extends State<MyHomePage> {
           content: Row(
             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
             children: [
-              for (Piece piece in promotionChoices)
+              for (PieceType piece in promotionChoices)
                 GestureDetector(
                   onTap: () => Navigator.pop(context, piece),
                   child: SvgPicture.asset(
@@ -314,12 +319,140 @@ class _MyHomePageState extends State<MyHomePage> {
     );
   }
 
-  bool isPromotionAttempt(Piece piece, int from, int to) {
+  bool isPromotionAttempt(PieceType piece, int from, int to) {
     // White promotion rank = rank 8 → index 56–63
     // Black promotion rank = rank 1 → index 0–7
     int rankTo = rankOf(to);
-    return (piece == Piece.whitePawn && rankTo == 7) ||
-          (piece == Piece.blackPawn && rankTo == 0);
+    return (piece == PieceType.wPawn && rankTo == 7) ||
+          (piece == PieceType.bPawn && rankTo == 0);
+  }
+
+  void showCheckmateDialog(
+    BuildContext context, {
+    required String winner,
+    required VoidCallback onNewGame,
+  }) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
+          title: const Column(
+            children: [
+              Icon(
+                Icons.emoji_events,
+                color: Colors.amber,
+                size: 48,
+              ),
+              SizedBox(height: 8),
+              Text(
+                'Checkmate!',
+                style: TextStyle(
+                  fontSize: 28,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ],
+          ),
+          content: Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: winner == 'White' ? Colors.grey[100] : Colors.grey[800],
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  '$winner wins!',
+                  style: TextStyle(
+                    fontSize: 24,
+                    fontWeight: FontWeight.bold,
+                    color: winner == 'White' ? Colors.black : Colors.white,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Game Over',
+                  style: TextStyle(
+                    fontSize: 16,
+                    color: winner == 'White' ? Colors.grey[700] : Colors.grey[300],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            OutlinedButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('View Board'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+                onNewGame();
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.green,
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+              ),
+              child: const Text('New Game'),
+            ),
+          ],
+          actionsAlignment: MainAxisAlignment.spaceEvenly,
+        );
+      },
+    );
+  }
+
+  void showGameOverDialog(
+    BuildContext context, {
+    required String result,  // "White wins", "Black wins", or "Draw"
+    String? reason,          // "Checkmate", "Stalemate", etc.
+    required VoidCallback onNewGame,
+  }) {
+    final isDraw = result == 'Draw';
+    
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Row(
+            children: [
+              Icon(
+                isDraw ? Icons.handshake : Icons.emoji_events,
+                color: isDraw ? Colors.blue : Colors.amber,
+                size: 32,
+              ),
+              const SizedBox(width: 12),
+              Text(reason ?? 'Game Over'),
+            ],
+          ),
+          content: Text(
+            result,
+            style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('View Board'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+                onNewGame();
+              },
+              child: const Text('New Game'),
+            ),
+          ],
+        );
+      },
+    );
   }
 }
+
 

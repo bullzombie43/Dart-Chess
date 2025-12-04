@@ -8,30 +8,20 @@ import 'package:path/path.dart' as path;
 // ============================================================================
 
 ffi.DynamicLibrary _loadLibrary() {
-   var libraryPath = path.join(
-    Directory.current.path,
-    'native',
-    'libhello.so',
-  );
-
   if (Platform.isMacOS) {
-    libraryPath = path.join(
-      Directory.current.path,
-      'native/macos',
-      'libchess_bridge.dylib',
-    );
-  }
-
-  if (Platform.isWindows) {
-    libraryPath = path.join(
-      Directory.current.path,
-      'native',
-      'Debug',
-      'hello.dll',
-    );
+    // In production (Flutter app), library is in the app bundle
+    return ffi.DynamicLibrary.open('libchess_bridge.dylib');
+  } else if (Platform.isAndroid) {
+    return ffi.DynamicLibrary.open('libchess_bridge.so');
+  } else if (Platform.isLinux) {
+    return ffi.DynamicLibrary.open('libchess_bridge.so');
+  } else if (Platform.isWindows) {
+    return ffi.DynamicLibrary.open('chess_bridge.dll');
+  } else if (Platform.isIOS) {
+    return ffi.DynamicLibrary.process();
   }
   
-  return ffi.DynamicLibrary.open(libraryPath);
+  throw UnsupportedError('Platform ${Platform.operatingSystem} not supported');
 }
 
 final _nativeLib = _loadLibrary();

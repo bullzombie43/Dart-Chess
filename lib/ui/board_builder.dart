@@ -29,6 +29,7 @@ class Boardbuilder extends StatelessWidget{
 
                 return GridView.builder(
                   gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: size.cols), 
+                  itemCount: 64,
                   itemBuilder: (context, index) {
                     int file = index % 8;
                     int rank = 7 - index ~/ 8;
