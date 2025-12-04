@@ -103,7 +103,7 @@ class _MyHomePageState extends State<MyHomePage> {
     widget.board.makeMove(move);
 
     //Check for checkmate after each move
-   
+    
   }
 
   Future<void> handleSquareTap(int index) async {

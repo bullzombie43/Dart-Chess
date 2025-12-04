@@ -246,6 +246,16 @@ class ChessEngine {
     return moves;
   }
 
+  /// Checks if is the current color to move is in stalemate 
+  bool isStalemate(ChessBoard board){
+    return false;
+  }
+
+  /// Checks if is the current color to move is in stalemate 
+  bool isCheckmate(ChessBoard board){
+    return false;
+  }
+
   /// Run perft test (for debugging)
   int perft(ChessBoard board, int depth){
     _checkDisposed();

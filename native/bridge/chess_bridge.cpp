@@ -276,9 +276,21 @@ uint8_t board_is_in_check(ChessBoardHandle handle) {
     return in_check ? 1 : 0;
 }
 
+uint8_t board_is_checkmate(ChessEngineHandle engine_handle, ChessBoardHandle board_handle)
+{
+    if (board_handle == nullptr || engine_handle == nullptr) {
+        throw std::runtime_error("Handle Cannot be null in board_is_checkmate");
+    }
 
+    // Board* board = handle_to_board(board_handle);
+    // Engine* engine = handle_to_engine(engine_handle);
 
+    // // Allocate temporary buffer for C++ moves
+    // Move cpp_moves[MAX_LEGAL_MOVES];
 
+    // int move_count = engine->generate_legal_moves(*board, )
 
-
+    // return 0;
+    return 0;
+}
  
