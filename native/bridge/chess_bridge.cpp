@@ -2,6 +2,7 @@
 #include "board.h"
 #include "engine.h"
 #include <iostream>
+#include <random>
 
 static inline Board* handle_to_board(ChessBoardHandle handle){
     return static_cast<Board*>(handle);
@@ -222,6 +223,32 @@ int32_t engine_generate_legal_moves(ChessEngineHandle engine_handle, ChessBoardH
     }
     
     return count;
+}
+
+uint8_t engine_get_random_move(ChessEngineHandle engine, ChessBoardHandle board, CMove* out_move)
+{
+    if (engine == nullptr || board == nullptr || out_move == nullptr) {
+        return 0;  // Failure
+    }
+    
+    Engine* eng = handle_to_engine(engine);
+    Board* brd = handle_to_board(board);
+    
+    // Generate legal moves
+    Move cpp_moves[MAX_LEGAL_MOVES];
+    int count = eng->generate_legal_moves(*brd, cpp_moves);
+    
+    if (count == 0) {
+        return 0;  // No moves available
+    }
+    
+    // Pick random move
+    int random_index = rand() % count;
+    
+    // Convert to C move and fill the output
+    cpp_move_to_c_move(cpp_moves[random_index], out_move);
+    
+    return 1;  // Success
 }
 
 void board_make_move(ChessBoardHandle handle, const CMove* move){

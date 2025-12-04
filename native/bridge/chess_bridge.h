@@ -158,6 +158,8 @@ int32_t engine_generate_legal_moves(ChessEngineHandle engine,
                                            CMove* moves,
                                            int32_t max_moves);
 
+uint8_t engine_get_random_move(ChessEngineHandle engine, ChessBoardHandle board, CMove* move);
+
 /*
  * =============================================================================
  * BOARD LIFECYCLE

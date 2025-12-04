@@ -125,6 +125,13 @@ class _MyHomePageState extends State<MyHomePage> {
             });
           }
         );
+    } else {
+      //If its not game over have the engine make a move
+      Move? engineMove = widget.engine.getRandomMove(widget.board);
+
+      if(engineMove == null) throw Exception("Random move was null");
+
+      widget.board.makeMove(engineMove);
     }
   }
 

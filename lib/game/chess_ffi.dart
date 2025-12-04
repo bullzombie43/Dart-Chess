@@ -82,6 +82,18 @@ typedef ChessEngineGenerateLegalMovesDart = int Function(
   int,
 );
 
+typedef ChessEngineGetRandomMoveNative = ffi.Uint8 Function(
+  ChessEngineHandle,
+  ChessBoardHandle,
+  ffi.Pointer<CMove>,
+);
+
+typedef ChessEngineGetRandomMoveDart = int Function(
+  ChessEngineHandle,
+  ChessBoardHandle,
+  ffi.Pointer<CMove>, 
+);
+
 // Board functions
 typedef ChessBoardCreateNative = ChessBoardHandle Function();
 typedef ChessBoardCreateDart = ChessBoardHandle Function();
@@ -167,6 +179,11 @@ final chessEngineGenerateLegalMoves = _nativeLib
     .lookup<ffi.NativeFunction<ChessEngineGenerateLegalMovesNative>>(
         'engine_generate_legal_moves')
     .asFunction<ChessEngineGenerateLegalMovesDart>();
+
+final chessEngineGetRandomMove = _nativeLib
+  .lookup<ffi.NativeFunction<ChessEngineGetRandomMoveNative>>(
+      'engine_get_random_move')
+  .asFunction<ChessEngineGetRandomMoveDart>();
 
 final chessBoardCreate = _nativeLib
     .lookup<ffi.NativeFunction<ChessBoardCreateNative>>('board_create')

@@ -246,6 +246,29 @@ class ChessEngine {
     return moves;
   }
 
+  Move? getRandomMove(ChessBoard board) {
+    // Allocate on Dart side
+    final movePtr = calloc<ffi_bindings.CMove>();
+    
+    try {
+      final success = ffi_bindings.chessEngineGetRandomMove(
+        _handle,
+        board._handle,
+        movePtr,
+      );
+      
+      if (success == 0) {
+        return null;  // No moves available
+      }
+      
+      // Convert to Dart Move
+      return Move.fromCMove(movePtr.ref);
+    } finally {
+      // Clean up
+      calloc.free(movePtr);
+    }
+  }
+
   /// Checks if is the current color to move is in stalemate 
   bool isStalemate(ChessBoard board){
     _checkDisposed();
