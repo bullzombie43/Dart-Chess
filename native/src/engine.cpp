@@ -106,8 +106,13 @@ uint64_t Engine::perft_divide(Board &board, int depth) {
 
 int Engine::evaluate_position(Board &board)
 {
-    int score = 0;
-    
+    Color side = board.sideToMove;
+
+    int score = board.get_pst_color(Color::WHITE) - board.get_pst_color(Color::BLACK);
+
+    score = side == Color::WHITE ? score : -score;
+
+    return score;
 }
 
 void Engine::generate_moves_from_square(const Board &board, Piece piece, uint8_t index, Move *moves, int &move_count)
