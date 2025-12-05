@@ -104,7 +104,13 @@ uint64_t Engine::perft_divide(Board &board, int depth) {
     return total;
 }
 
-void Engine::generate_moves_from_square(const Board &board, Piece piece, uint8_t index, Move* moves, int& move_count)
+int Engine::evaluate_position(Board &board)
+{
+    int score = 0;
+    
+}
+
+void Engine::generate_moves_from_square(const Board &board, Piece piece, uint8_t index, Move *moves, int &move_count)
 {
     if(piece == Piece::W_KNIGHT || piece == Piece::B_KNIGHT){
         generate_knight_moves(board, piece, index, moves, move_count);

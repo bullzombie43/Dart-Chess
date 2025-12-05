@@ -232,6 +232,106 @@ const std::array<std::array<Bitboard, 4>, 64> bishop_ray_masks = []{
     return result;
 }();
 
+const std::array<std::array<int, 64>, 6> piece_square_table = []{
+    std::array<std::array<int, 64>, 6> pst;
+    
+    std::array<int, 64> pawn_array = {
+        // Pawns on 1st/8th rank are impossible (would be promoted)
+        // Value increases as pawns advance, bonus for central pawns
+        0,   0,   0,   0,   0,   0,   0,   0,
+        105, 105, 105, 105, 105, 105, 105, 105,
+        100, 100, 100, 110, 110, 100, 100, 100,
+        100, 100, 105, 115, 115, 105, 100, 100,
+        100, 100, 110, 120, 120, 110, 100, 100,
+        105, 105, 115, 125, 125, 115, 105, 105,
+        110, 110, 120, 130, 130, 120, 110, 110,
+        0,   0,   0,   0,   0,   0,   0,   0
+    };
+
+    std::array<int, 64> knight_array = {
+        //This is is the same we'd view the board as whitw with A1 in bot left, we will flip later
+        290, 300, 300, 300, 300, 300, 300, 290,
+        300, 305, 305, 305, 305, 305, 305, 300,
+        300, 305, 325, 325, 325, 325, 305, 300,
+        300, 305, 325, 325, 325, 325, 305, 300,
+        300, 305, 325, 325, 325, 325, 305, 300,
+        300, 305, 320, 325, 325, 325, 305, 300,
+        300, 305, 305, 305, 305, 305, 305, 300,
+        290, 310, 300, 300, 300, 300, 310, 290
+    };
+
+    std::array<int, 64> rook_array = {
+        //This is is the same we'd view the board as whitw with A1 in bot left, we will flip later
+        500,   500,   500,   500,   500,   500,   500,   500,
+        520,   520,   520,   520,   520,   520,   520,   520,
+        500,   500,   500,   500,   500,   500,   500,   500,
+        500,   500,   500,   500,   500,   500,   500,   500,
+        500,   500,   500,   500,   500,   500,   500,   500,
+        500,   500,   500,   500,   500,   500,   500,   500,
+        500,   500,   500,   500,   500,   500,   500,   500,
+        500,   500,   500,   510,   510,   505,   500,   500
+    };
+
+    std::array<int, 64> bishop_array = {
+        // Bishops slightly prefer center, avoid being trapped in corners
+        310, 315, 315, 315, 315, 315, 315, 310,
+        315, 325, 320, 320, 320, 320, 325, 315,
+        315, 320, 325, 325, 325, 325, 320, 315,
+        315, 320, 325, 330, 330, 325, 320, 315,
+        315, 320, 325, 330, 330, 325, 320, 315,
+        315, 325, 325, 325, 325, 325, 325, 315,
+        315, 330, 320, 320, 320, 320, 330, 315,
+        310, 315, 310, 315, 315, 310, 315, 310
+    };
+
+    std::array<int, 64> queen_array = {
+        // Queen prefers center, avoid early development to edges
+        880, 890, 890, 895, 895, 890, 890, 880,
+        890, 900, 900, 900, 900, 900, 900, 890,
+        890, 900, 905, 905, 905, 905, 900, 890,
+        895, 900, 905, 910, 910, 905, 900, 895,
+        895, 900, 905, 910, 910, 905, 900, 895,
+        890, 900, 905, 905, 905, 905, 900, 890,
+        890, 900, 900, 900, 900, 900, 900, 890,
+        880, 890, 890, 895, 895, 890, 890, 880
+    };
+
+    std::array<int, 64> king_middlegame_array = {
+        // King should castle and stay safe (corners/edges)
+        // Heavy penalty for center exposure
+        20000, 20050, 20030, 20000, 20000, 20030, 20050, 20000,
+        20000, 20000, 20000, 20000, 20000, 20000, 20000, 20000,
+        19980, 19980, 19980, 19980, 19980, 19980, 19980, 19980,
+        19970, 19970, 19970, 19970, 19970, 19970, 19970, 19970,
+        19960, 19960, 19960, 19960, 19960, 19960, 19960, 19960,
+        19950, 19950, 19950, 19950, 19950, 19950, 19950, 19950,
+        19950, 19950, 19950, 19950, 19950, 19950, 19950, 19950,
+        19950, 19970, 19960, 19940, 19940, 19940, 19970, 19950
+    };
+
+    std::array<int, 64> king_endgame_array = {
+        // In endgame, king should be active and centralized
+        19970, 19980, 19985, 19990, 19990, 19985, 19980, 19970,
+        19980, 19990, 19995, 20000, 20000, 19995, 19990, 19980,
+        19985, 19995, 20005, 20010, 20010, 20005, 19995, 19985,
+        19990, 20000, 20010, 20020, 20020, 20010, 20000, 19990,
+        19990, 20000, 20010, 20020, 20020, 20010, 20000, 19990,
+        19985, 19995, 20005, 20010, 20010, 20005, 19995, 19985,
+        19980, 19990, 19995, 20000, 20000, 19995, 19990, 19980,
+        19970, 19980, 19985, 19990, 19990, 19985, 19980, 19970
+    };
+
+    pst[static_cast<int>(PieceType::PAWN)] = pawn_array;
+    pst[static_cast<int>(PieceType::KNIGHT)] = knight_array;
+    pst[static_cast<int>(PieceType::BISHOP)] = bishop_array;
+    pst[static_cast<int>(PieceType::ROOK)] = rook_array;
+    pst[static_cast<int>(PieceType::QUEEN)] = queen_array;
+    pst[static_cast<int>(PieceType::KING)] = king_middlegame_array;
+    
+    return pst;
+
+}();
+
 Bitboard get_bishop_attacks(int square, Bitboard occupied){
     uint64_t attacks = 0ULL;
     
@@ -274,3 +374,9 @@ Bitboard get_queen_attacks(int square, Bitboard occupied){
     return get_bishop_attacks(square, occupied) | get_rook_attacks(square, occupied);
 }
 
+int pop_lsb(Bitboard &bitboard)
+{
+    int square = std::countr_zero(bitboard);
+    bitboard &= bitboard - 1;
+    return square;
+}

@@ -81,9 +81,10 @@ typedef struct {
  */
 
 /* Color constants (matching C++ Color enum) */
-#define COLOR_NONE  0
-#define COLOR_WHITE 1
-#define COLOR_BLACK 2
+#define COLOR_WHITE 0
+#define COLOR_BLACK 1
+#define COLOR_NONE  2
+
 
 /* Piece constants (matching C++ Piece enum) */
 #define PIECE_W_PAWN   0
@@ -279,6 +280,20 @@ uint8_t board_get_piece_at(ChessBoardHandle handle, int square);
  * @return COLOR_WHITE or COLOR_BLACK
  */
 uint8_t board_get_side_to_move(ChessBoardHandle handle);
+
+/**
+ * Gets the piece-square table (PST) score for a color.
+ * 
+ * @param handle Board handle
+ * @param color Color to query (COLOR_WHITE=1 or COLOR_BLACK=2)
+ * @return PST score (material + position evaluation)
+ * 
+ * USAGE: Useful for evaluating material advantage.
+ *   int32_t white_score = board_get_pst_of_color(board, COLOR_WHITE);
+ *   int32_t black_score = board_get_pst_of_color(board, COLOR_BLACK);
+ *   int32_t advantage = white_score - black_score;
+ */
+int32_t board_get_pst_of_color(ChessBoardHandle handle, int color);
 
 /**
  * Gets the current position as a FEN string.

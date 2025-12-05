@@ -63,7 +63,7 @@ R N B Q K B . R
     EXPECT_EQ(1, board.half_move_clock);
     EXPECT_EQ(2, board.num_moves_total);
     EXPECT_EQ(std::nullopt, board.enPassantSquare);
-    EXPECT_EQ(board.getFen(),"nbqkbnr/pp1ppppp/8/2p5/4P3/5N2/PPPP1PPP/RNBQKB1R b KQkq - 1 2" );
+    EXPECT_EQ(board.getFen(),"rnbqkbnr/pp1ppppp/8/2p5/4P3/5N2/PPPP1PPP/RNBQKB1R b KQkq - 1 2" );
 }
 
 TEST_F(BoardTestFixture, SetBoardToFenTest2){

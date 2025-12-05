@@ -292,6 +292,21 @@ class ChessEngine {
     return ffi_bindings.chessPerft(_handle, board._handle, depth);
   }
 
+  /// Get piece-square table score for a color
+  /// 
+  /// Returns the total material + positional score
+  int getPstScore(Color color) {
+    _checkDisposed();
+    return ffi_bindings.chessBoardGetPstOfColor(_handle, color.value);
+  }
+
+  /// Get material advantage (positive = white is winning, negative = black)
+  int getMaterialAdvantage() {
+    final whiteScore = getPstScore(Color.white);
+    final blackScore = getPstScore(Color.black);
+    return whiteScore - blackScore;
+  }
+
   /// Clean up native resources
   void dispose(){
     if(!_disposed){

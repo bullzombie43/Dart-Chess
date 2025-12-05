@@ -147,6 +147,9 @@ typedef ChessBoardMakeMoveDart = void Function(
   ffi.Pointer<CMove>,
 );
 
+typedef BoardGetPstOfColorNative = ffi.Int32 Function(ChessBoardHandle, ffi.Int32);
+typedef BoardGetPstOfColorDart = int Function(ChessBoardHandle, int);
+
 typedef ChessBoardUndoMoveNative = ffi.Void Function(ChessBoardHandle);
 typedef ChessBoardUndoMoveDart = void Function(ChessBoardHandle);
 
@@ -254,6 +257,12 @@ final chessFreeString = _nativeLib
 final chessPerft = _nativeLib
     .lookup<ffi.NativeFunction<ChessPerftNative>>('chess_perft')
     .asFunction<ChessPerftDart>();
+
+// Lookup the function
+final chessBoardGetPstOfColor = _nativeLib
+    .lookup<ffi.NativeFunction<BoardGetPstOfColorNative>>(
+        'board_get_pst_of_color')
+    .asFunction<BoardGetPstOfColorDart>();
 
 // ============================================================================
 // CONSTANTS (matching C constants)

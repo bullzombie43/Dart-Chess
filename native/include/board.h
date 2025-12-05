@@ -39,9 +39,9 @@ inline PieceType typeOf(Piece p) {
 }
 
 enum class Color : uint8_t {
-    NONE, //0
-    WHITE, //1
-    BLACK //2
+    WHITE, //0
+    BLACK, //1
+    NONE, //2
 };
 
 inline Color colorOf(Piece p) {
@@ -116,6 +116,9 @@ class Board {
 
         Color color_can_en_passant;
 
+        /// @brief 0 is whites table 1 is blacks table
+        std::array<int, 2> pst_colors; 
+
         Board();
 
         Bitboard get_piece_bitboard(Piece piece) const;
@@ -130,6 +133,7 @@ class Board {
         Bitboard get_empty_squares() const;
         bool is_square_attacked(int square, Color attacking_color) const;
         std::string getFen();
+        int32_t get_pst_color(Color color) const;
 
         void print_board(std::ostream& os) const;
 
@@ -156,7 +160,8 @@ class Board {
 
         std::string generate_piece_placement_fen();
         std::string index_to_square(int index);
-
+        
+        void init_pst_tables();
         
 };
 

@@ -28,6 +28,11 @@ class Engine{
         /*  *   *   *   *   *  *  */
 
 
+        /// @brief Evaluate the position returning a numerical value. 
+        /// Higher score = Better For White, Lower Score = better for black
+        /// @param board the current position as a board object
+        /// @return The score of the position from whites perspective. 
+        int evaluate_position(Board& board);
 
 
     private:

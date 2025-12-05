@@ -112,6 +112,25 @@ uint8_t board_get_side_to_move(ChessBoardHandle handle){
     return static_cast<uint8_t>(board->sideToMove);
 }
 
+int32_t board_get_pst_of_color(ChessBoardHandle handle, int color)
+{
+    if (handle == nullptr) {
+        throw std::runtime_error("Handle cannot be null in board_get_pst_of_color");
+    }
+    
+    // Validate color (should be 1 for WHITE or 2 for BLACK based on your constants)
+    if (color != COLOR_WHITE && color != COLOR_BLACK) {
+        throw std::invalid_argument("Invalid color: must be COLOR_WHITE (1) or COLOR_BLACK (2)");
+    }
+    
+    Board* board = handle_to_board(handle);
+    
+    // Convert int to Color enum
+    Color cpp_color = static_cast<Color>(color);
+    
+    return board->get_pst_color(cpp_color);
+}
+
 uint8_t board_get_piece_at(ChessBoardHandle handle, int square){
     if(handle == nullptr){
         throw std::runtime_error("Handle Cannot not be null in board_get_piece_at");

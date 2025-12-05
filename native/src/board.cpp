@@ -30,6 +30,7 @@ Board::Board() {
     };
 
     update_color_bitboard();
+    init_pst_tables(); //initial values of pst_tables should be the same;
 }
 
 Bitboard Board::get_piece_bitboard(Piece piece) const
@@ -84,6 +85,9 @@ void Board::set_position_fen(const std::string &fen)
     this->num_moves_total = std::stoi(num_moves_total);
 
     update_color_bitboard();
+    
+    //Update pst
+    init_pst_tables();
 }
 
 //We assume a move passed into here is valid
@@ -138,9 +142,6 @@ void Board::make_move(Move& move) {
         remove_castling_right(CastlingRights::BLACK_KINGSIDE);
     }
 
-    // castlingRightsState &= ~CASTLING_RIGHTS_MASK[move.from_square];
-    // castlingRightsState &= ~CASTLING_RIGHTS_MASK[move.to_square];  // If rook captured
-
     //Castling
     if(move.is_castling){
         castle_move(move);
@@ -165,7 +166,15 @@ void Board::make_move(Move& move) {
         newBitboard = newBitboard | endMask;
         bitboard_array[move.piece] = newBitboard;
     }
-    
+
+    //Update PST
+    Color color = colorOf(static_cast<Piece>(move.piece));
+    int pstFromSquare = color == Color::WHITE ? flip_array[move.from_square] : move.from_square;
+    int pstToSquare = color == Color::WHITE ? flip_array[move.to_square]: move.to_square;
+
+    pst_colors[static_cast<int>(color)] -= piece_square_table[static_cast<int>(typeOf(static_cast<Piece>(move.piece)))][pstFromSquare];
+    pst_colors[static_cast<int>(color)] += piece_square_table[static_cast<int>(typeOf(static_cast<Piece>(move.piece)))][pstToSquare];
+
     //Switch turn
     sideToMove = sideToMove == Color::WHITE ? Color::BLACK : Color::WHITE;
 
@@ -329,6 +338,11 @@ std::string Board::getFen()
     return fen.str();
 }
 
+int32_t Board::get_pst_color(Color color) const
+{
+    return pst_colors[static_cast<int>(color)];
+}
+
 std::string Board::generate_piece_placement_fen()
 {
     std::ostringstream buffer;
@@ -370,6 +384,35 @@ std::string Board::index_to_square(int index)
     char rankChar = '1' + rank; // '1'..'8'
 
     return std::string() + fileChar + rankChar;
+}
+
+void Board::init_pst_tables()
+{
+    int w_pst = 0;
+    int b_pst = 0;
+
+    //Iterate over white pieces
+    for(int i = W_PAWN; i < B_PAWN; i++){
+        Bitboard piece_board = bitboard_array[i];
+
+        while(piece_board != 0){
+            int square = pop_lsb(piece_board);
+            w_pst += piece_square_table[i][flip_array[square]];
+        }
+    }
+
+    //Iterate over Black pieces
+    for(int i = B_PAWN; i < NONE; i++){
+        Bitboard piece_board = bitboard_array[i];
+
+        while(piece_board != 0){
+            int square = pop_lsb(piece_board);
+            b_pst += piece_square_table[i-B_PAWN][square];
+        }
+    }
+
+    pst_colors[static_cast<int>(Color::WHITE)] = w_pst;
+    pst_colors[static_cast<int>(Color::BLACK)] = b_pst;
 }
 
 void Board::print_board(std::ostream& os) const {
@@ -458,6 +501,12 @@ void Board::remove_captured_piece(int square, Piece capturedPiece)
     if(capturedPiece == Piece::W_ROOK && square == 0) remove_castling_right(CastlingRights::WHITE_QUEENSIDE);
     if(capturedPiece == Piece::B_ROOK && square == 56) remove_castling_right(CastlingRights::BLACK_QUEENSIDE);
     if(capturedPiece == Piece::B_ROOK && square == 63) remove_castling_right(CastlingRights::BLACK_KINGSIDE);
+
+    //Update PST
+    Color color = colorOf(capturedPiece);
+    square = color == Color::WHITE ? flip_array[square] : square;
+
+    pst_colors[static_cast<int>(color)] -= piece_square_table[static_cast<int>(typeOf(capturedPiece))][square];
 }
 
 void Board::castle_move(Move &king_move)
@@ -547,3 +596,4 @@ int Board::get_king_square(Color color)
       return std::countr_zero(bitboard_array[B_KING]);
     }
 }
+
