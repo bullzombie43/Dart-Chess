@@ -63,7 +63,7 @@ R N B Q K B . R
     EXPECT_EQ(1, board.half_move_clock);
     EXPECT_EQ(2, board.num_moves_total);
     EXPECT_EQ(std::nullopt, board.enPassantSquare);
-    EXPECT_EQ(board.getFen(),"rnbqkbnr/pp1ppppp/8/2p5/4P3/5N2/PPPP1PPP/RNBQKB1R b KQkq - 1 2" );
+    EXPECT_EQ(board.get_fen(),"rnbqkbnr/pp1ppppp/8/2p5/4P3/5N2/PPPP1PPP/RNBQKB1R b KQkq - 1 2" );
 }
 
 TEST_F(BoardTestFixture, SetBoardToFenTest2){
@@ -89,7 +89,7 @@ R N B Q K B N R
     EXPECT_EQ(0, board.half_move_clock);
     EXPECT_EQ(2, board.num_moves_total);
     EXPECT_EQ(board.C6, board.enPassantSquare);  
-    EXPECT_EQ(board.getFen(), "rnbqkbnr/pp1ppppp/8/2p5/4P3/8/PPPP1PPP/RNBQKBNR w KQkq c6 0 2");
+    EXPECT_EQ(board.get_fen(), "rnbqkbnr/pp1ppppp/8/2p5/4P3/8/PPPP1PPP/RNBQKBNR w KQkq c6 0 2");
 }
 
 TEST_F(BoardTestFixture, CastlingRights){
@@ -105,8 +105,17 @@ TEST_F(BoardTestFixture, MakeMoveUnmakeMove){
     board = Board();
     std::ostringstream oss;
 
+    int preMoveWhite = board.get_pst_color(Color::WHITE);
+    int preMoveBlack = board.get_pst_color(Color::BLACK);
+
     Move pawnC2C4 = {Piece::W_PAWN, 10, 26, Piece::NONE, Piece::NONE, false, false};    
     board.make_move(pawnC2C4);
+
+    std::cout << "PRE: " << preMoveWhite << " Post: " << board.get_pst_color(Color::WHITE) << std::endl;
+
+    EXPECT_NE(board.get_pst_color(Color::WHITE), preMoveWhite);
+    EXPECT_EQ(board.get_pst_color(Color::BLACK), preMoveBlack);
+
     board.print_board(oss);
 
     EXPECT_EQ(R"(r n b q k b n r 
@@ -123,6 +132,9 @@ R N B Q K B N R
 
     //Reverse C2C4
     board.undo_move();
+
+    EXPECT_EQ(board.get_pst_color(Color::WHITE), preMoveWhite);
+    EXPECT_EQ(board.get_pst_color(Color::BLACK), preMoveBlack);
 
     oss.str("");
     oss.clear();

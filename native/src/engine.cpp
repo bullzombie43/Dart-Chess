@@ -4,6 +4,7 @@
 #include "engine.h"
 #include <iostream>
 #include "engine.h"
+#include <limits>
 
 int Engine::generate_psuedo_legal_moves(const Board &board, Move* moves)
 {
@@ -115,11 +116,86 @@ int Engine::evaluate_position(Board &board)
     return score;
 }
 
-std::pair<Move, int> Engine::negamax(Board &board)
+Move Engine::get_best_move(Board &board)
 {
-    
+    Move best_move = Move(Piece::NONE, 0, 0, Piece::NONE, Piece::NONE, false, false);
+    Move moves[MAX_NUMBER_OF_MOVES];
+    int num_moves = generate_legal_moves(board, moves);
 
-    return std::pair<Move, int>();
+    int alpha = -40000;
+    int beta = 40000;
+
+    for(int i = 0; i < num_moves; i++){
+        board.make_move(moves[i]);
+        int score = -negamaxAB(board, 5, 1, -beta, -alpha);  // Use current alpha/beta
+        board.undo_move();
+
+        if(score > alpha){  // Found better move
+            alpha = score;  // Update alpha, if it's lower than
+            best_move = moves[i];
+        }
+    }
+
+    return best_move;
+}
+
+int Engine::negamax(Board &board, int depth, int ply)
+{
+    if(depth == 0) return evaluate_position(board);
+
+    Move moves[MAX_NUMBER_OF_MOVES];
+    int num_moves = generate_legal_moves(board, moves);
+
+    if(num_moves == 0){
+        if(board.is_in_check(board.sideToMove)){
+            std::cout << "Num mates "<< std::endl;
+            return -30000 + ply; //priortize faster mates
+        }
+        return 0; //stalemate
+    }
+
+    int max = -40000;
+
+    for(int i = 0; i < num_moves; i++){
+        board.make_move(moves[i]);
+        int score = -negamax(board, depth-1, ply+1);
+        board.undo_move();
+
+        max = std::max(max, score);
+    }
+
+    return max;
+}
+
+int Engine::negamaxAB(Board &board, int depth, int ply, int alpha, int beta)
+{
+    if(depth == 0) return evaluate_position(board);
+
+    Move moves[MAX_NUMBER_OF_MOVES];
+    int num_moves = generate_legal_moves(board, moves);
+
+    if(num_moves == 0){
+        if(board.is_in_check(board.sideToMove)){
+            return -30000 + ply;
+        }
+        return 0;
+    }
+
+    for(int i = 0; i < num_moves; i++){
+        board.make_move(moves[i]);
+        int score = -negamaxAB(board, depth-1, ply+1, -beta, -alpha);
+        board.undo_move();
+
+        if(score >= beta){
+            return alpha;  // Beta cutoff
+        }
+        
+        if(score > alpha){
+            alpha = score;  // Found new best
+        }
+    }
+
+    return alpha;
 }
 
 void Engine::generate_moves_from_square(const Board &board, Piece piece, uint8_t index, Move *moves, int &move_count)

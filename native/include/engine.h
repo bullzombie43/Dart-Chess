@@ -34,9 +34,10 @@ class Engine{
         /// @return The score of the position from the perspective of the current side to move. 
         int evaluate_position(Board& board);
 
-        
-        std::pair<Move, int> negamax(Board& board);
+        int negamax(Board& board, int depth, int ply);
+        int negamaxAB(Board& board, int depth, int ply, int alpha, int beta);
 
+        Move get_best_move(Board& board);
 
 
     private:
@@ -48,6 +49,7 @@ class Engine{
         void generate_knight_moves(const Board& board, Piece piece, uint8_t index, Move* moves, int& move_count);
         void generate_king_moves(const Board& board, Piece piece, uint8_t index, Move* moves, int& move_count);
         void generate_castle_moves(const Board& board, Piece piece, uint8_t index, Move* moves, int& move_count);
+
 
         enum Direction{
             North = 8,

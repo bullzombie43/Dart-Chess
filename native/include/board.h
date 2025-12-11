@@ -35,7 +35,7 @@ enum Piece : uint8_t{
 };
 
 inline PieceType typeOf(Piece p) {
-    return PieceType((p - 1) % 6 + 1);
+    return PieceType(p % 6);
 }
 
 enum class Color : uint8_t {
@@ -78,7 +78,7 @@ struct Move {
     Piece captured_piece;
     Piece promoted_piece;
     bool is_enpassant;
-    bool is_castling;
+    bool is_castling; 
 };
 
 struct Move_State {
@@ -132,7 +132,7 @@ class Board {
         Bitboard get_active_color_bb() const;
         Bitboard get_empty_squares() const;
         bool is_square_attacked(int square, Color attacking_color) const;
-        std::string getFen();
+        std::string get_fen();
         int32_t get_pst_color(Color color) const;
 
         void print_board(std::ostream& os) const;

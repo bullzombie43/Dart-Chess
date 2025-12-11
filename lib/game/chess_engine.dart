@@ -64,7 +64,8 @@ class Move {
 
 enum Color{
   white(ffi_bindings.colorWhite),
-  black(ffi_bindings.colorBlack);
+  black(ffi_bindings.colorBlack),
+  none(ffi_bindings.colorNone);
 
   final int value;
   const Color(this.value);
@@ -261,6 +262,31 @@ class ChessEngine {
         return null;  // No moves available
       }
       
+      // Convert to Dart Move
+      return Move.fromCMove(movePtr.ref);
+    } finally {
+      // Clean up
+      calloc.free(movePtr);
+    }
+  }
+
+  Move? getBestMove(ChessBoard board) {
+    // Allocate on Dart side
+    final movePtr = calloc<ffi_bindings.CMove>();
+    
+    try {
+      final success = ffi_bindings.chessEngineGetBestMove(
+        _handle,
+        board._handle,
+        movePtr,
+      );
+      
+      if (success == 0) {
+        print("No move retuend for some reason");
+        return null;  // No moves available
+      }
+      
+
       // Convert to Dart Move
       return Move.fromCMove(movePtr.ref);
     } finally {

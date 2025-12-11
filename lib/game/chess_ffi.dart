@@ -94,6 +94,18 @@ typedef ChessEngineGetRandomMoveDart = int Function(
   ffi.Pointer<CMove>, 
 );
 
+typedef ChessEngineGetBestMoveNative = ffi.Uint8 Function(
+  ChessEngineHandle,
+  ChessBoardHandle,
+  ffi.Pointer<CMove>,
+);
+
+typedef ChessEngineGetBestMoveDart = int Function(
+  ChessEngineHandle,
+  ChessBoardHandle,
+  ffi.Pointer<CMove>, 
+);
+
 // Board functions
 typedef ChessBoardCreateNative = ChessBoardHandle Function();
 typedef ChessBoardCreateDart = ChessBoardHandle Function();
@@ -188,6 +200,11 @@ final chessEngineGetRandomMove = _nativeLib
       'engine_get_random_move')
   .asFunction<ChessEngineGetRandomMoveDart>();
 
+final chessEngineGetBestMove = _nativeLib
+  .lookup<ffi.NativeFunction<ChessEngineGetRandomMoveNative>>(
+      'engine_get_best_move')
+  .asFunction<ChessEngineGetRandomMoveDart>();
+
 final chessBoardCreate = _nativeLib
     .lookup<ffi.NativeFunction<ChessBoardCreateNative>>('board_create')
     .asFunction<ChessBoardCreateDart>();
@@ -268,8 +285,9 @@ final chessBoardGetPstOfColor = _nativeLib
 // CONSTANTS (matching C constants)
 // ============================================================================
 
-const int colorWhite = 1;
-const int colorBlack = 2;
+const int colorWhite = 0;
+const int colorBlack = 1;
+const int colorNone = 2;
 
 const int pieceWPawn = 0;
 const int pieceWKnight = 1;

@@ -241,6 +241,14 @@ void Board::undo_move() {
       bitboard_array[move.promoted_piece] &= ~(1ULL << move.to_square);
     }
 
+    //Undo PST
+    Color color = colorOf(static_cast<Piece>(move.piece));
+    int pstFromSquare = color == Color::WHITE ? flip_array[move.from_square] : move.from_square;
+    int pstToSquare = color == Color::WHITE ? flip_array[move.to_square]: move.to_square;
+
+    pst_colors[static_cast<int>(color)] += piece_square_table[static_cast<int>(typeOf(static_cast<Piece>(move.piece)))][pstFromSquare];
+    pst_colors[static_cast<int>(color)] -= piece_square_table[static_cast<int>(typeOf(static_cast<Piece>(move.piece)))][pstToSquare];
+
     update_color_bitboard();
 }
 
@@ -301,7 +309,7 @@ void Board::update_color_bitboard()
     | bitboard_array[B_ROOK] | bitboard_array[B_QUEEN] | bitboard_array[B_KING];
 }
 
-std::string Board::getFen()
+std::string Board::get_fen()
 {
     std::array<std::string,6> parts;
 
@@ -496,6 +504,15 @@ void Board::undo_rook_castle(Color color, int start, int end) {
 
 void Board::remove_captured_piece(int square, Piece capturedPiece)
 {
+    if(capturedPiece == Piece::NONE){
+        throw std::invalid_argument("Captured Piece cannot be none");
+    }
+
+    if(square < 0 || square > 63){
+        throw std::invalid_argument("Square out of bounds");
+    }   
+
+
     bitboard_array[capturedPiece] &= ~(1ULL << square);
     if(capturedPiece == Piece::W_ROOK && square == 7) remove_castling_right(CastlingRights::WHITE_KINGSIDE);
     if(capturedPiece == Piece::W_ROOK && square == 0) remove_castling_right(CastlingRights::WHITE_QUEENSIDE);
@@ -506,7 +523,14 @@ void Board::remove_captured_piece(int square, Piece capturedPiece)
     Color color = colorOf(capturedPiece);
     square = color == Color::WHITE ? flip_array[square] : square;
 
-    pst_colors[static_cast<int>(color)] -= piece_square_table[static_cast<int>(typeOf(capturedPiece))][square];
+    if(color == Color::NONE){
+        throw std::invalid_argument("Color cannot be none");
+    }
+
+    int type = static_cast<int>(typeOf(capturedPiece));
+
+    pst_colors[static_cast<int>(color)] -= piece_square_table[type][square];
+
 }
 
 void Board::castle_move(Move &king_move)
@@ -521,7 +545,7 @@ void Board::castle_move(Move &king_move)
       rookStart = king_move.from_square - 4; // rook originally on a-file
       rookEnd = king_move.from_square - 1;   // rook moves next to king
     } else {
-        std::cout << "FEN: " << getFen() << std::endl;
+        std::cout << "FEN: " << get_fen() << std::endl;
         throw std::invalid_argument("Invalid castling move");
     }
 

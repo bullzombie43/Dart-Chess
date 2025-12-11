@@ -40,7 +40,6 @@ static void c_move_to_cpp_move(const CMove* src, Move& dst) {
     dst.is_castling = src->is_castling != 0;
 }
 
-
 ChessEngineHandle engine_create(void) {
     // Allocate new Engine object on the heap
     Engine* engine = new Engine();
@@ -152,7 +151,7 @@ char* board_get_fen(ChessBoardHandle handle){
 
     Board* board = handle_to_board(handle);
 
-    std::string fen = board->getFen();
+    std::string fen = board->get_fen();
 
     //Allocate C string (size + 1 for null terminator)
     // IMPORTANT: Use malloc, not new[], so it matches free() in chess_free_string
@@ -268,6 +267,27 @@ uint8_t engine_get_random_move(ChessEngineHandle engine, ChessBoardHandle board,
     cpp_move_to_c_move(cpp_moves[random_index], out_move);
     
     return 1;  // Success
+}
+
+uint8_t engine_get_best_move(ChessEngineHandle engine, ChessBoardHandle board, CMove *move)
+{
+    if (engine == nullptr || board == nullptr || move == nullptr) {
+        return 0;  // Failure
+    }
+    
+    Engine* eng = handle_to_engine(engine);
+    Board* brd = handle_to_board(board);
+
+    Move best_move = eng->get_best_move(*brd);
+
+    // Convert to C move and fill the output
+    cpp_move_to_c_move(best_move, move);
+
+    if(move->from_square == move->to_square){
+        return 0;
+    }
+
+    return 1;
 }
 
 void board_make_move(ChessBoardHandle handle, const CMove* move){

@@ -4,7 +4,7 @@
             "name": "(lldb) Launch Board Unit Tests",
             "type": "cppdbg",
             "request": "launch",
-            "program": "${workspaceFolder}/native/build/board_test",
+            "program": "${workspaceFolder}/native/build-debug/board_test",
             "args": [],
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}/native/build",

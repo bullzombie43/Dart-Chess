@@ -127,7 +127,10 @@ class _MyHomePageState extends State<MyHomePage> {
         );
     } else {
       //If its not game over have the engine make a move
-      Move? engineMove = widget.engine.getRandomMove(widget.board);
+      Move? engineMove = widget.engine.getBestMove(widget.board);
+
+      print(engineMove!.fromSquare);
+      print(engineMove!.fromSquare);
 
       if(engineMove == null) throw Exception("Random move was null");
 
