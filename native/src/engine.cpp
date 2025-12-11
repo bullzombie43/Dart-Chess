@@ -122,7 +122,7 @@ Move Engine::get_best_move(Board &board)
     Move moves[MAX_NUMBER_OF_MOVES];
     int num_moves = generate_legal_moves(board, moves);
 
-    // order_moves(moves, num_moves);
+    order_moves(moves, num_moves);
 
     int alpha = -40000;
     int beta = 40000;
