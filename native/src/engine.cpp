@@ -122,6 +122,8 @@ Move Engine::get_best_move(Board &board)
     Move moves[MAX_NUMBER_OF_MOVES];
     int num_moves = generate_legal_moves(board, moves);
 
+    // order_moves(moves, num_moves);
+
     int alpha = -40000;
     int beta = 40000;
 
@@ -148,7 +150,6 @@ int Engine::negamax(Board &board, int depth, int ply)
 
     if(num_moves == 0){
         if(board.is_in_check(board.sideToMove)){
-            std::cout << "Num mates "<< std::endl;
             return -30000 + ply; //priortize faster mates
         }
         return 0; //stalemate
@@ -187,7 +188,7 @@ int Engine::negamaxAB(Board &board, int depth, int ply, int alpha, int beta)
         board.undo_move();
 
         if(score >= beta){
-            return alpha;  // Beta cutoff
+            return beta;  // Beta cutoff
         }
         
         if(score > alpha){
@@ -196,6 +197,30 @@ int Engine::negamaxAB(Board &board, int depth, int ply, int alpha, int beta)
     }
 
     return alpha;
+}
+
+void Engine::order_moves(Move *moves, int num_moves)
+{
+    // Sort moves by score (highest first)
+    std::sort(moves, moves + num_moves, [](const Move& a, const Move& b) {
+        // Calculate scores inline
+        auto score = [](const Move& m) {
+            int s = 0;
+            Piece captured = static_cast<Piece>(m.captured_piece);
+            Piece movePiece = static_cast<Piece>(m.piece);
+            Piece promoted = static_cast<Piece>(m.promoted_piece);
+            
+            if (captured != Piece::NONE) {
+                s = 10 * get_piece_value(captured) - get_piece_value(movePiece);
+            }
+            if (promoted != Piece::NONE) {
+                s += get_piece_value(promoted);
+            }
+            return s;
+        };
+        
+        return score(a) > score(b);  // Descending order
+    });
 }
 
 void Engine::generate_moves_from_square(const Board &board, Piece piece, uint8_t index, Move *moves, int &move_count)

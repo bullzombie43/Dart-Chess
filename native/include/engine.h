@@ -37,6 +37,8 @@ class Engine{
         int negamax(Board& board, int depth, int ply);
         int negamaxAB(Board& board, int depth, int ply, int alpha, int beta);
 
+        void order_moves(Move* moves, int num_moves);
+
         Move get_best_move(Board& board);
 
 

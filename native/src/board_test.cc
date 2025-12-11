@@ -113,9 +113,6 @@ TEST_F(BoardTestFixture, MakeMoveUnmakeMove){
 
     std::cout << "PRE: " << preMoveWhite << " Post: " << board.get_pst_color(Color::WHITE) << std::endl;
 
-    EXPECT_NE(board.get_pst_color(Color::WHITE), preMoveWhite);
-    EXPECT_EQ(board.get_pst_color(Color::BLACK), preMoveBlack);
-
     board.print_board(oss);
 
     EXPECT_EQ(R"(r n b q k b n r 
@@ -162,6 +159,9 @@ TEST_F(BoardTestFixture, DoublePawnPushAndUndo) {
     // Note: Piece and captured_piece should be handled by your make_move logic
     // We'll define piece based on its type and color for simplicity here.
     Move pawnE2E4 = {Piece::W_PAWN, 12, 28, Piece::NONE, Piece::NONE, false, false};    
+
+    int preMoveWhite = board.get_pst_color(Color::WHITE);
+    int preMoveBlack = board.get_pst_color(Color::BLACK);
     
     board.make_move(pawnE2E4);
 
@@ -171,6 +171,11 @@ TEST_F(BoardTestFixture, DoublePawnPushAndUndo) {
 
     // Undo move
     board.undo_move();
+
+
+    
+    EXPECT_EQ(board.get_pst_color(Color::WHITE), preMoveWhite);
+    EXPECT_EQ(board.get_pst_color(Color::BLACK), preMoveBlack);
 
     // Verify board and state are completely restored
     EXPECT_EQ(std::nullopt, board.enPassantSquare); // En passant reset
@@ -206,6 +211,9 @@ TEST_F(BoardTestFixture, PawnCaptureAndUndo) {
     // Move: Nf3 takes e5 (square 21 to 36). Captured piece is B_PAWN.
     Move knightCapturesPawn = {Piece::W_KNIGHT, 21, 36, Piece::B_PAWN, Piece::NONE, false, false};
 
+    int preMoveWhite = board.get_pst_color(Color::WHITE);
+    int preMoveBlack = board.get_pst_color(Color::BLACK);
+
     board.make_move(knightCapturesPawn);
 
     // Verify piece is gone and capture flag is set
@@ -213,6 +221,9 @@ TEST_F(BoardTestFixture, PawnCaptureAndUndo) {
 
     // Undo move
     board.undo_move();
+
+    EXPECT_EQ(board.get_pst_color(Color::WHITE), preMoveWhite);
+    EXPECT_EQ(board.get_pst_color(Color::BLACK), preMoveBlack);
 
     // Verify board state is fully restored
     oss.str("");
@@ -228,6 +239,88 @@ R N B Q K B . R
 )", oss.str()); // Check that Knight is back on F3 and Pawn is back on E5
 }
 
+TEST_F(BoardTestFixture, EnPassantCaptureAndUndoPST) {
+    board = Board();
+    std::ostringstream oss;
+    
+    // Setup position where en passant is available
+    // White pawn on e5, black pawn just moved d7-d5 (en passant target on d6)
+    board.set_position_fen("rnbqkbnr/ppp1pppp/8/3pP3/8/8/PPPP1PPP/RNBQKBNR w KQkq d6 0 2");
+    
+    // Save PST values before move
+    int preMoveWhite = board.get_pst_color(Color::WHITE);
+    int preMoveBlack = board.get_pst_color(Color::BLACK);
+    
+    // Save FEN for comparison
+    std::string originalFen = board.get_fen();
+    
+    // En passant capture: e5 takes d6 (white pawn captures black pawn on d5)
+    // from_square = 36 (e5), to_square = 43 (d6)
+    // captured_piece = B_PAWN (on d5, square 35)
+    Move enPassantMove = {
+        Piece::W_PAWN,      // piece
+        36,                 // from_square (e5)
+        43,                 // to_square (d6)
+        Piece::B_PAWN,      // captured_piece
+        Piece::NONE,        // promoted_piece
+        true,               // is_enpassant
+        false               // is_castling
+    };
+    
+    // Verify initial state
+    EXPECT_EQ(board.get_piece_at(36), Piece::W_PAWN);  // White pawn on e5
+    EXPECT_EQ(board.get_piece_at(35), Piece::B_PAWN);  // Black pawn on d5
+    EXPECT_EQ(board.get_piece_at(43), Piece::NONE);    // d6 is empty
+    
+    // Make en passant move
+    board.make_move(enPassantMove);
+    
+    // Verify move was made correctly
+    EXPECT_EQ(board.sideToMove, Color::BLACK);         // Side flipped
+    EXPECT_EQ(board.get_piece_at(36), Piece::NONE);    // e5 is now empty
+    EXPECT_EQ(board.get_piece_at(43), Piece::W_PAWN);  // White pawn moved to d6
+    EXPECT_EQ(board.get_piece_at(35), Piece::NONE);    // Black pawn on d5 was captured!
+    
+    // PST should have changed
+    int afterMoveWhite = board.get_pst_color(Color::WHITE);
+    int afterMoveBlack = board.get_pst_color(Color::BLACK);
+    
+    EXPECT_NE(afterMoveWhite, preMoveWhite) << "White PST should change after en passant";
+    EXPECT_NE(afterMoveBlack, preMoveBlack) << "Black PST should change (pawn captured)";
+    
+    // Undo the en passant move
+    board.undo_move();
+    
+    // Verify PST is fully restored
+    EXPECT_EQ(board.get_pst_color(Color::WHITE), preMoveWhite) 
+        << "White PST should be restored after undo";
+    EXPECT_EQ(board.get_pst_color(Color::BLACK), preMoveBlack)
+        << "Black PST should be restored after undo";
+    
+    // Verify board state is fully restored
+    EXPECT_EQ(board.sideToMove, Color::WHITE);
+    EXPECT_EQ(board.get_piece_at(36), Piece::W_PAWN);  // White pawn back on e5
+    EXPECT_EQ(board.get_piece_at(35), Piece::B_PAWN);  // Black pawn restored on d5
+    EXPECT_EQ(board.get_piece_at(43), Piece::NONE);    // d6 is empty again
+    
+    // Verify FEN is restored
+    std::string restoredFen = board.get_fen();
+    EXPECT_EQ(restoredFen, originalFen) << "FEN should be fully restored after undo";
+    
+    // Verify visual board state
+    oss.str("");
+    board.print_board(oss);
+    EXPECT_EQ(R"(r n b q k b n r 
+p p p . p p p p 
+. . . . . . . . 
+. . . p P . . . 
+. . . . . . . . 
+. . . . . . . . 
+P P P P . P P P 
+R N B Q K B N R 
+)", oss.str());
+}
+
 TEST_F(BoardTestFixture, CastlingMakeAndUndo) {
     board = Board();
 
@@ -237,6 +330,9 @@ TEST_F(BoardTestFixture, CastlingMakeAndUndo) {
     board.set_position_fen(
         "r3k2r/8/8/8/8/8/8/R3K2R w KQkq - 0 1"
     );
+
+    int preMoveWhite = board.get_pst_color(Color::WHITE);
+    int preMoveBlack = board.get_pst_color(Color::BLACK);
 
     std::ostringstream oss_original;
     board.print_board(oss_original);
@@ -260,6 +356,9 @@ TEST_F(BoardTestFixture, CastlingMakeAndUndo) {
 
     board.make_move(wk_castle);
 
+    EXPECT_NE(board.get_pst_color(Color::WHITE), preMoveWhite);
+    EXPECT_EQ(board.get_pst_color(Color::BLACK), preMoveBlack);
+
     // Verify king and rook moved
     std::ostringstream oss_after_castle;
     board.print_board(oss_after_castle);
@@ -275,6 +374,9 @@ R . . . . R K .
 
     // Undo
     board.undo_move();
+    EXPECT_EQ(board.get_pst_color(Color::WHITE), preMoveWhite);
+    EXPECT_EQ(board.get_pst_color(Color::BLACK), preMoveBlack);
+
     std::ostringstream oss_after_undo;
     board.print_board(oss_after_undo);
     EXPECT_EQ(original, oss_after_undo.str());

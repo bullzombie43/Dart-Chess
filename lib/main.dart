@@ -99,33 +99,22 @@ class _MyHomePageState extends State<MyHomePage> {
   int? selectedIndex;
   Map<int, HighlightType> highlights = {};
 
-  void fullPlayerMove(Move move){
+  void fullPlayerMove(Move move) async{
     widget.board.makeMove(move);
 
+    // Update UI with player's move
+    setState(() {
+      selectedIndex = null;
+      markers.clear();
+      legalMoves.clear();
+      highlights = _generateHighlights(board: widget.board, engine: widget.engine);
+    });
+
+    // ✅ Give Flutter time to paint the player's move
+    await Future.delayed(const Duration(milliseconds: 100));
+
     //Check for checkmate after each move
-    if(widget.engine.isCheckmate(widget.board)){
-      showGameOverDialog(
-        context, 
-        result: widget.board.getSideToMove() == Color.black ? "White Wins" : "Black Wins", 
-        reason: "Checkmate",
-        onNewGame: () {
-          setState(() {
-            widget.board.setFen("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1");
-          });
-        }
-      );
-    } else if (widget.engine.isStalemate(widget.board)){
-        showGameOverDialog(
-          context, 
-          result: "Draw", 
-          reason: "Stalemate",
-          onNewGame: () {
-            setState(() {
-              widget.board.setFen("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1");
-            });
-          }
-        );
-    } else {
+    if(!isCheckmateOrStalemate()) {
       //If its not game over have the engine make a move
       Move? engineMove = widget.engine.getBestMove(widget.board);
 
@@ -135,6 +124,18 @@ class _MyHomePageState extends State<MyHomePage> {
       if(engineMove == null) throw Exception("Random move was null");
 
       widget.board.makeMove(engineMove);
+
+      await Future.delayed(const Duration(milliseconds: 100));
+
+      isCheckmateOrStalemate();
+
+      setState(() {
+        selectedIndex = null;
+        markers.clear();
+        legalMoves.clear();
+        highlights = _generateHighlights(board: widget.board, engine: widget.engine);
+      });
+
     }
   }
 
@@ -195,14 +196,6 @@ class _MyHomePageState extends State<MyHomePage> {
         } else {
           fullPlayerMove(move);
         }
-
-        // Now update state synchronously
-        setState(() {
-          selectedIndex = null;
-          markers.clear();
-          legalMoves.clear();
-          highlights = _generateHighlights(board: widget.board, engine: widget.engine);
-        });
       } else if (widget.board.getPieceAt(index) != PieceType.none && index != selectedIndex) {
           //Regenerate legal moves for the new square
           legalMoves.clear();
@@ -357,6 +350,38 @@ class _MyHomePageState extends State<MyHomePage> {
     int rankTo = rankOf(to);
     return (piece == PieceType.wPawn && rankTo == 7) ||
           (piece == PieceType.bPawn && rankTo == 0);
+  }
+
+  bool isCheckmateOrStalemate(){
+    //Check for checkmate after each move
+    if(widget.engine.isCheckmate(widget.board)){
+      showGameOverDialog(
+        context, 
+        result: widget.board.getSideToMove() == Color.black ? "White Wins" : "Black Wins", 
+        reason: "Checkmate",
+        onNewGame: () {
+          setState(() {
+            widget.board.setFen("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1");
+          });
+        }
+      );
+
+      return true;
+    } else if (widget.engine.isStalemate(widget.board)){
+        showGameOverDialog(
+          context, 
+          result: "Draw", 
+          reason: "Stalemate",
+          onNewGame: () {
+            setState(() {
+              widget.board.setFen("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1");
+            });
+          }
+        );
+        return true;
+    }
+
+    return false;
   }
 
   void showGameOverDialog(

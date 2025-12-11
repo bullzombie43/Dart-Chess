@@ -205,6 +205,14 @@ void Board::undo_move() {
     //Restore capture
     if(last.captured_piece != Piece::NONE && !move.is_enpassant){
         bitboard_array[last.captured_piece] |= (1ULL << move.to_square);
+
+        //Update PST
+        Color color = colorOf(static_cast<Piece>(last.captured_piece));
+        int square = color == Color::WHITE ? flip_array[move.to_square] : move.to_square;
+
+        int type = static_cast<int>(typeOf(static_cast<Piece>(last.captured_piece)));
+
+        pst_colors[static_cast<int>(color)] += piece_square_table[type][square];
     }
 
     //Undo special moves (castle, en passant, etc.)
@@ -233,6 +241,14 @@ void Board::undo_move() {
             ? Piece::B_PAWN
             : Piece::W_PAWN;
         bitboard_array[move.captured_piece] |= (1ULL << capturedPawnSquare);
+
+        //Update PST
+        Color color = colorOf(static_cast<Piece>(move.captured_piece));
+        int square = color == Color::WHITE ? flip_array[capturedPawnSquare] : capturedPawnSquare;
+
+        int type = static_cast<int>(typeOf(static_cast<Piece>(move.captured_piece)));
+
+        pst_colors[static_cast<int>(color)] += piece_square_table[type][square];
     }
 
     //undo promotion
@@ -500,6 +516,12 @@ void Board::undo_rook_castle(Color color, int start, int end) {
         bitboard_array[B_ROOK] &= ~(1ULL << end);
         bitboard_array[B_ROOK] |= (1ULL << start);
     }
+
+    //Update rook PST
+    int pstFromSquare = color == Color::WHITE ? flip_array[start] : start;
+    int pstToSquare = color == Color::WHITE ? flip_array[end]: end;
+    pst_colors[static_cast<int>(color)] += piece_square_table[static_cast<int>(PieceType::ROOK)][pstFromSquare];
+    pst_colors[static_cast<int>(color)] -= piece_square_table[static_cast<int>(PieceType::ROOK)][pstToSquare];
 }
 
 void Board::remove_captured_piece(int square, Piece capturedPiece)
@@ -555,6 +577,14 @@ void Board::castle_move(Move &king_move)
     // Move the rook on the bitboard
     bitboard_array[rookPiece] &= ~(1ULL << rookStart); //remove from start
     bitboard_array[rookPiece] |= (1ULL << rookEnd); //add to end
+
+    //Update rook PST
+    Color color = colorOf(static_cast<Piece>(rookPiece));
+    int pstFromSquare = color == Color::WHITE ? flip_array[rookStart] : rookStart;
+    int pstToSquare = color == Color::WHITE ? flip_array[rookEnd]: rookEnd;
+
+    pst_colors[static_cast<int>(color)] -= piece_square_table[static_cast<int>(typeOf(static_cast<Piece>(rookPiece)))][pstFromSquare];
+    pst_colors[static_cast<int>(color)] += piece_square_table[static_cast<int>(typeOf(static_cast<Piece>(rookPiece)))][pstToSquare];
 }
 
 bool Board::is_square_attacked(int target, Color attacking_color) const

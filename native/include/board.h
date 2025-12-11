@@ -38,6 +38,27 @@ inline PieceType typeOf(Piece p) {
     return PieceType(p % 6);
 }
 
+// In board.h or a constants file:
+constexpr int PIECE_VALUES[13] = {
+    100,    // W_PAWN   = 0
+    320,    // W_KNIGHT = 1
+    330,    // W_BISHOP = 2
+    500,    // W_ROOK   = 3
+    900,    // W_QUEEN  = 4
+    20000,  // W_KING   = 5
+    100,    // B_PAWN   = 6
+    320,    // B_KNIGHT = 7
+    330,    // B_BISHOP = 8
+    500,    // B_ROOK   = 9
+    900,    // B_QUEEN  = 10
+    20000,  // B_KING   = 11
+    0       // NONE     = 12
+};
+
+inline int get_piece_value(Piece p){
+    return PIECE_VALUES[static_cast<int>(p)];
+}
+
 enum class Color : uint8_t {
     WHITE, //0
     BLACK, //1

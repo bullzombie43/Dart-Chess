@@ -311,17 +311,63 @@ class EngineTestFixture : public ::testing::Test {
 
 TEST(EngineSearchTest, AlphaBetaSameAsNormal){
     Board board;
-    Board board2;
     Engine engine;
 
-    int negamax = engine.negamax(board, 1, 0);
-    board.print_board(std::cout);
-    std::cout << std::endl;
-    std::cout << std::endl;
-    std::cout << std::endl;
-    int negamaxAB = engine.negamax(board, 1, 0);//engine.negamaxAB(board, 1, 0, -40000, 40000);
-    board.print_board(std::cout);
+    EXPECT_EQ(engine.negamax(board, 1, 0), engine.negamaxAB(board, 1, 0, -40000, 40000));
+    EXPECT_EQ(engine.negamax(board, 2, 0), engine.negamaxAB(board, 2, 0, -40000, 40000));
+    EXPECT_EQ(engine.negamax(board, 3, 0), engine.negamaxAB(board, 3, 0, -40000, 40000));
+    EXPECT_EQ(engine.negamax(board, 4, 0), engine.negamaxAB(board, 4, 0, -40000, 40000));
+    EXPECT_EQ(engine.negamax(board, 5, 0), engine.negamaxAB(board, 5, 0, -40000, 40000));
+    EXPECT_EQ(engine.negamax(board, 6, 0), engine.negamaxAB(board, 6, 0, -40000, 40000));
+}
 
-    EXPECT_EQ(negamax, negamaxAB);
+TEST(EngineTest, AlphaBetaIsFaster) {
+    Board board;
+    Engine engine;
+    
+    auto start = std::chrono::high_resolution_clock::now();
+    int negamax_result = engine.negamax(board, 5, 0);
+    auto mid = std::chrono::high_resolution_clock::now();
+    int ab_result = engine.negamaxAB(board, 5, 0, -40000, 40000);
+    auto end = std::chrono::high_resolution_clock::now();
+    
+    auto negamax_time = std::chrono::duration_cast<std::chrono::milliseconds>(mid - start);
+    auto ab_time = std::chrono::duration_cast<std::chrono::milliseconds>(end - mid);
+    
+    // Results should match
+    EXPECT_EQ(negamax_result, ab_result);
+    
+    // AB should be faster (usually 2-10x at depth 5)
+    std::cout << "Negamax time: " << negamax_time.count() << "ms" << std::endl;
+    std::cout << "Alpha-Beta time: " << ab_time.count() << "ms" << std::endl;
+    std::cout << "Speedup: " << (double)negamax_time.count() / ab_time.count() << "x" << std::endl;
+    
+    EXPECT_LT(ab_time.count(), negamax_time.count()) << "AB should be faster";
+}
+
+TEST(EngineTest, AlphaBetaIsFasterOnComplexPosition) {
+    Board board;
+    Engine engine;
+
+    board.set_position_fen("r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1");
+    
+    auto start = std::chrono::high_resolution_clock::now();
+    int negamax_result = engine.negamax(board, 5, 0);
+    auto mid = std::chrono::high_resolution_clock::now();
+    int ab_result = engine.negamaxAB(board, 5, 0, -40000, 40000);
+    auto end = std::chrono::high_resolution_clock::now();
+    
+    auto negamax_time = std::chrono::duration_cast<std::chrono::milliseconds>(mid - start);
+    auto ab_time = std::chrono::duration_cast<std::chrono::milliseconds>(end - mid);
+    
+    // Results should match
+    EXPECT_EQ(negamax_result, ab_result);
+    
+    // AB should be faster (usually 2-10x at depth 5)
+    std::cout << "Negamax time: " << negamax_time.count() << "ms" << std::endl;
+    std::cout << "Alpha-Beta time: " << ab_time.count() << "ms" << std::endl;
+    std::cout << "Speedup: " << (double)negamax_time.count() / ab_time.count() << "x" << std::endl;
+    
+    EXPECT_LT(ab_time.count(), negamax_time.count()) << "AB should be faster";
 }
 
