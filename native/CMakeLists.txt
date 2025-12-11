@@ -49,7 +49,15 @@
         src/board.cpp
         src/utils.cpp
         src/engine.cpp
-    )   
+    )
+    
+    #UCI source files
+    set(UCI_SOURCES
+        src/engine.cpp 
+        src/uci.cpp 
+        src/board.cpp 
+        src/utils.cpp
+    )
 
     #GTest Executable
     enable_testing()
@@ -98,6 +106,12 @@
     
     # Create executable
     add_executable(chess_engine ${SOURCES}) 
+
+    # UCI executable
+    add_executable(chess_engine_uci ${UCI_SOURCES})
+
+    # Set output name
+    set_target_properties(chess_engine_uci PROPERTIES OUTPUT_NAME "chess_engine_uci")
 
     # ============================================================================
     # SHARED LIBRARY FOR FLUTTER FFI (NEW!)

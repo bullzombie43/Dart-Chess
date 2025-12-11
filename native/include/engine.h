@@ -2,9 +2,29 @@
 #include <vector>
 #include "board.h"
 
+struct ScoredMove {
+    Move move;
+    int score;
+};
+
+inline int score_move(const Move& move){
+    int s = 0;
+    Piece captured = static_cast<Piece>(move.captured_piece);
+    Piece movePiece = static_cast<Piece>(move.piece);
+    Piece promoted = static_cast<Piece>(move.promoted_piece);
+    
+    if (captured != Piece::NONE) {
+        s = 10 * get_piece_value(captured) - get_piece_value(movePiece);
+    }
+    if (promoted != Piece::NONE) {
+        s += get_piece_value(promoted);
+    }
+    return s;
+}
+
 class Engine{
     public:
-        Engine() = default;
+        Engine();
 
         /*  *   *   *   *  *  */
         /*   MOVE GENERATION  */
@@ -41,8 +61,14 @@ class Engine{
 
         Move get_best_move(Board& board);
 
+        void reset_nodes_searched();
+
+        uint64_t get_nodes_searched();
+
 
     private:
+        uint64_t nodes_searched;
+
         // Helper function to generate moves for a single piece type/color
         void generate_moves_from_square(const Board& board, Piece piece, uint8_t index, Move* moves, int& move_count);
 

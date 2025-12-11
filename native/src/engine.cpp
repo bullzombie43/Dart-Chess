@@ -6,7 +6,12 @@
 #include "engine.h"
 #include <limits>
 
-int Engine::generate_psuedo_legal_moves(const Board &board, Move* moves)
+Engine::Engine()
+{
+    nodes_searched = 0;
+}
+
+int Engine::generate_psuedo_legal_moves(const Board &board, Move *moves)
 {
     int move_count = 0;
     Color color = board.sideToMove;
@@ -141,8 +146,19 @@ Move Engine::get_best_move(Board &board)
     return best_move;
 }
 
+void Engine::reset_nodes_searched()
+{
+    nodes_searched = 0;
+}
+
+uint64_t Engine::get_nodes_searched()
+{
+    return nodes_searched;
+}
+
 int Engine::negamax(Board &board, int depth, int ply)
 {
+    nodes_searched++;
     if(depth == 0) return evaluate_position(board);
 
     Move moves[MAX_NUMBER_OF_MOVES];
@@ -170,6 +186,7 @@ int Engine::negamax(Board &board, int depth, int ply)
 
 int Engine::negamaxAB(Board &board, int depth, int ply, int alpha, int beta)
 {
+    nodes_searched++;
     if(depth == 0) return evaluate_position(board);
 
     Move moves[MAX_NUMBER_OF_MOVES];
@@ -183,6 +200,24 @@ int Engine::negamaxAB(Board &board, int depth, int ply, int alpha, int beta)
     }
 
     for(int i = 0; i < num_moves; i++){
+        //Find best remaining move O(N) but hopefully we save time by pruning
+        int best_idx = i;
+        int best_score = score_move(moves[i]);
+        
+        for (int j = i + 1; j < num_moves; j++) {
+            int score = score_move(moves[j]);
+            if (score > best_score) {
+                best_score = score;
+                best_idx = j;
+            }
+        }
+
+        // Swap best move to current position
+        if (best_idx != i) {
+            std::swap(moves[i], moves[best_idx]);
+        }
+
+
         board.make_move(moves[i]);
         int score = -negamaxAB(board, depth-1, ply+1, -beta, -alpha);
         board.undo_move();
@@ -201,26 +236,24 @@ int Engine::negamaxAB(Board &board, int depth, int ply, int alpha, int beta)
 
 void Engine::order_moves(Move *moves, int num_moves)
 {
-    // Sort moves by score (highest first)
-    std::sort(moves, moves + num_moves, [](const Move& a, const Move& b) {
-        // Calculate scores inline
-        auto score = [](const Move& m) {
-            int s = 0;
-            Piece captured = static_cast<Piece>(m.captured_piece);
-            Piece movePiece = static_cast<Piece>(m.piece);
-            Piece promoted = static_cast<Piece>(m.promoted_piece);
-            
-            if (captured != Piece::NONE) {
-                s = 10 * get_piece_value(captured) - get_piece_value(movePiece);
-            }
-            if (promoted != Piece::NONE) {
-                s += get_piece_value(promoted);
-            }
-            return s;
-        };
-        
-        return score(a) > score(b);  // Descending order
-    });
+    ScoredMove scored_moves[MAX_NUMBER_OF_MOVES];
+    
+    // Score all moves - O(N)
+    for (int i = 0; i < num_moves; i++) {
+        scored_moves[i].move = moves[i];
+        scored_moves[i].score = score_move(moves[i]);
+    }
+    
+    // Sort by score descending - O(N log N)
+    std::sort(scored_moves, scored_moves + num_moves, 
+              [](const ScoredMove& a, const ScoredMove& b) {
+                  return a.score > b.score;  // Higher score first
+              });
+    
+    // Copy back - O(N)
+    for (int i = 0; i < num_moves; i++) {
+        moves[i] = scored_moves[i].move;
+    }
 }
 
 void Engine::generate_moves_from_square(const Board &board, Piece piece, uint8_t index, Move *moves, int &move_count)

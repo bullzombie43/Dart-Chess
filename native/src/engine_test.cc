@@ -371,3 +371,21 @@ TEST(EngineTest, AlphaBetaIsFasterOnComplexPosition) {
     EXPECT_LT(ab_time.count(), negamax_time.count()) << "AB should be faster";
 }
 
+TEST(EnginePerformanceTest, SearchSpeed) {
+    Board board;
+    Engine engine;
+    
+    auto start = std::chrono::high_resolution_clock::now();
+    engine.negamaxAB(board, 5, 0, -99999, 99999);
+    auto end = std::chrono::high_resolution_clock::now();
+    
+    auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
+    uint64_t nodes = engine.get_nodes_searched();
+    uint64_t nps = nodes * 1000 / ms.count();
+    
+    std::cout << "Depth 5:" << std::endl;
+    std::cout << "  Time: " << ms.count() << "ms" << std::endl;
+    std::cout << "  Nodes: " << nodes << std::endl;
+    std::cout << "  NPS: " << nps << std::endl;
+}
+
