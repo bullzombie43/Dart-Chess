@@ -27,12 +27,16 @@ class Engine{
         /*  SEARCH AND EVALUATION */
         /*  *   *   *   *   *  *  */
 
-
-        /// @brief Evaluate the position returning a numerical value. 
-        /// Higher score = Better For White, Lower Score = better for black
+        /// @brief Evaluate the position returning a numerical value. This follows negamax so it's always positive
+        /// where the score is from the current sides perspective.  
+        /// Higher score is better for the current side.
         /// @param board the current position as a board object
-        /// @return The score of the position from whites perspective. 
+        /// @return The score of the position from the perspective of the current side to move. 
         int evaluate_position(Board& board);
+
+        
+        std::pair<Move, int> negamax(Board& board);
+
 
 
     private:

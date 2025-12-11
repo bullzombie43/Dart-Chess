@@ -292,8 +292,7 @@ class ChessEngine {
     return ffi_bindings.chessPerft(_handle, board._handle, depth);
   }
 
-  /// Get piece-square table score for a color
-  /// 
+  /// Get piece-square table score for a color. 
   /// Returns the total material + positional score
   int getPstScore(Color color) {
     _checkDisposed();

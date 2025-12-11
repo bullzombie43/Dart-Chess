@@ -115,6 +115,13 @@ int Engine::evaluate_position(Board &board)
     return score;
 }
 
+std::pair<Move, int> Engine::negamax(Board &board)
+{
+    
+
+    return std::pair<Move, int>();
+}
+
 void Engine::generate_moves_from_square(const Board &board, Piece piece, uint8_t index, Move *moves, int &move_count)
 {
     if(piece == Piece::W_KNIGHT || piece == Piece::B_KNIGHT){
