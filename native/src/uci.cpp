@@ -179,40 +179,7 @@ Piece UCIEngine::parse_promotion(char c, Color color)
 
 Move UCIEngine::search_position(int depth)
 {
-    Move moves[MAX_NUMBER_OF_MOVES];
-    int num_moves = engine.generate_legal_moves(board, moves);
-    
-    if (num_moves == 0) {
-        return Move{};  // No legal moves
-    }
-    
-    Move best_move = moves[0];
-    int best_score = -999999;
-    
-    for (int i = 0; i < num_moves; i++) {
-        board.make_move(moves[i]);
-        int score = -engine.negamaxAB(board, depth - 1, 1, -999999, 999999);
-        board.undo_move();
-        
-        // Optional: send info
-        if(false){
-            std::cout << "info depth " << depth 
-                    << " score cp " << score 
-                    << " pv " << move_to_uci(moves[i]) 
-                    << std::endl;
-        }
-        
-        
-        if (score > best_score) {
-            best_score = score;
-            best_move = moves[i];
-        }
-    }
-
-    std::cout << "info depth " << depth 
-                    << " score cp " << best_score 
-                    << " pv " << move_to_uci(best_move) 
-                    << std::endl;
+    Move best_move = engine.search_iterative_deepening(board, 10);
     
     return best_move;
 }

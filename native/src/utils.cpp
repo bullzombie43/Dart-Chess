@@ -380,3 +380,96 @@ int pop_lsb(Bitboard &bitboard)
     bitboard &= bitboard - 1;
     return square;
 }
+
+uint64_t calculate_zobrist_hash(const Board &board)
+{
+    uint64_t zobrist_key = 0;
+
+    //Piece
+    uint64_t piece_key = 0;
+    for(int i = 0; i < 64; i++){
+        Piece piece = board.get_piece_at(i);
+        if(piece != Piece::NONE){
+            int offset = 64 * piece_to_zobrist_index(piece) + 8 * rankOf(i) + fileOf(i);
+            piece_key ^= Random64[offset];
+        }
+    }
+    zobrist_key ^= piece_key;
+
+    //Castle
+    uint64_t castle_key = 0;
+    if(board.can_castle(CastlingRights::WHITE_KINGSIDE)) castle_key ^= Random64[CASTLE_START + 0];
+    if(board.can_castle(CastlingRights::WHITE_QUEENSIDE)) castle_key ^= Random64[CASTLE_START + 1];
+    if(board.can_castle(CastlingRights::BLACK_KINGSIDE)) castle_key ^= Random64[CASTLE_START + 2];
+    if(board.can_castle(CastlingRights::BLACK_QUEENSIDE)) castle_key ^= Random64[CASTLE_START + 3];
+
+    zobrist_key^= castle_key;
+
+    //En Passant
+        if(board.enPassantSquare.has_value()) {
+        int ep_square = board.enPassantSquare.value();
+        int ep_file = fileOf(ep_square);
+        int ep_rank = rankOf(ep_square);
+        
+        // The pawn that just moved (via double push) is one rank away from EP square
+        // Capturing pawns are on the same rank as the pushed pawn
+        int pushed_pawn_rank;
+        int capturing_pawn_rank;
+        Piece capturing_pawn;
+        
+        if(ep_rank == 2) {
+            // EP square on rank 3 (e3) - white pushed from rank 2 to rank 4
+            pushed_pawn_rank = 3;
+            capturing_pawn_rank = 3;
+            capturing_pawn = Piece::B_PAWN;
+        } else { // ep_rank == 5
+            // EP square on rank 6 (e6) - black pushed from rank 7 to rank 5  
+            pushed_pawn_rank = 4;
+            capturing_pawn_rank = 4;
+            capturing_pawn = Piece::W_PAWN;
+        }
+        
+        bool has_capturer = false;
+        
+        // Check adjacent files on the capturing pawn rank
+        if(ep_file > 0) {
+            int left_square = capturing_pawn_rank * 8 + (ep_file - 1);
+            if(board.get_piece_at(left_square) == capturing_pawn) {
+                has_capturer = true;
+            }
+        }
+        
+        if(ep_file < 7) {
+            int right_square = capturing_pawn_rank * 8 + (ep_file + 1);
+            if(board.get_piece_at(right_square) == capturing_pawn) {
+                has_capturer = true;
+            }
+        }
+        
+        if(has_capturer) {
+            zobrist_key ^= Random64[772 + ep_file];
+        }
+    }
+
+        //Turn
+        zobrist_key ^= board.sideToMove == Color::WHITE ? Random64[TURN_START] : 0;
+
+        return zobrist_key;
+    }
+
+// Polyglot: only hash EP if there's a capturing pawn
+bool has_ep_capturer(const Board& board) {
+    if(!board.enPassantSquare.has_value()) return false;
+    
+    int ep_square = board.enPassantSquare.value();
+    int file = fileOf(ep_square);
+    int rank = rankOf(ep_square);
+    
+    // Check adjacent files for enemy pawn
+    Piece enemy_pawn = (board.sideToMove == Color::WHITE) ? Piece::B_PAWN : Piece::W_PAWN;
+    
+    if(file > 0 && board.get_piece_at(ep_square - 1) == enemy_pawn) return true;
+    if(file < 7 && board.get_piece_at(ep_square + 1) == enemy_pawn) return true;
+    
+    return false;
+}

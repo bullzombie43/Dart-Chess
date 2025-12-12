@@ -100,6 +100,14 @@ struct Move {
     Piece promoted_piece;
     bool is_enpassant;
     bool is_castling; 
+
+    // In Move struct/class
+    bool operator==(const Move& other) const {
+        return from_square == other.from_square&& 
+            to_square == other.to_square && 
+            piece == other.piece &&
+            promoted_piece == other.promoted_piece;
+    }
 };
 
 struct Move_State {

@@ -278,7 +278,7 @@ uint8_t engine_get_best_move(ChessEngineHandle engine, ChessBoardHandle board, C
     Engine* eng = handle_to_engine(engine);
     Board* brd = handle_to_board(board);
 
-    Move best_move = eng->get_best_move(*brd);
+    Move best_move = eng->search_iterative_deepening(*brd, 10);
 
     // Convert to C move and fill the output
     cpp_move_to_c_move(best_move, move);

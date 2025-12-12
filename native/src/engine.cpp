@@ -146,20 +146,38 @@ int Engine::evaluate_position(Board &board)
     return score;
 }
 
-Move Engine::get_best_move(Board &board)
+Move Engine::get_best_move(Board& board){
+    return get_best_move(board, 6, Move(Piece::NONE, 0, 0, Piece::NONE, Piece::NONE, false, false));
+}
+
+Move Engine::get_best_move(Board &board, int depth, Move start_move)
 {
-    Move best_move = Move(Piece::NONE, 0, 0, Piece::NONE, Piece::NONE, false, false);
+    Move best_move = start_move;
     Move moves[MAX_NUMBER_OF_MOVES];
     int num_moves = generate_legal_moves(board, moves);
 
+    if(num_moves == 0) {
+        return Move(Piece::NONE, 0, 0, Piece::NONE, Piece::NONE, false, false);
+    }
+
     order_moves(moves, num_moves);
+
+    // Search previous best move first
+    if(start_move.piece != Piece::NONE) {
+        for(int i = 0; i < num_moves; i++) {
+            if(moves[i] == start_move) {  // Need operator== on Move
+                std::swap(moves[0], moves[i]);
+                break;
+            }
+        }
+    }
 
     int alpha = -40000;
     int beta = 40000;
 
     for(int i = 0; i < num_moves; i++){
         board.make_move(moves[i]);
-        int score = -negamaxAB(board, 3, 1, -beta, -alpha);  // Use current alpha/beta
+        int score = -negamaxAB(board, depth-1, 1, -beta, -alpha);  // Use current alpha/beta
         board.undo_move();
 
         if(score > alpha){  // Found better move
@@ -169,6 +187,40 @@ Move Engine::get_best_move(Board &board)
     }
 
     return best_move;
+}
+
+Move Engine::search_iterative_deepening(Board &board, int time_limit_ms)
+{
+    auto start_time = std::chrono::high_resolution_clock::now();
+    Move best_move_overall = Move(Piece::NONE, 0, 0, Piece::NONE, Piece::NONE, false, false);
+
+    int depth;
+
+    for(depth = 1; depth <= MAX_DEPTH; depth++){
+        // Check time before starting new depth
+        auto current_time = std::chrono::high_resolution_clock::now();
+        auto elapsed_so_far = std::chrono::duration_cast<std::chrono::milliseconds>(
+            current_time - start_time).count();
+        
+        // Rough heuristic: if we've used more than 40% of time, don't start new depth
+        if(depth > 3 && elapsed_so_far >= time_limit_ms * 0.4) {
+            break;
+        }
+
+        int nodes_searched = 0;
+
+        Move new_best = get_best_move(board, depth, best_move_overall);
+
+        auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(
+            std::chrono::high_resolution_clock::now() - start_time).count();
+
+
+
+        best_move_overall = new_best;
+    }
+
+    return best_move_overall;
+
 }
 
 void Engine::reset_nodes_searched()

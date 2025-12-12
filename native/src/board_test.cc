@@ -1,5 +1,6 @@
 #include <gtest/gtest.h>
 #include <board.h>
+#include <utils.h>
 
 class BoardTestFixture : public ::testing::Test {
     protected:
@@ -561,4 +562,61 @@ TEST_F(BoardTestFixture, KingsAdjacentBothInCheck) {
     EXPECT_TRUE(board.is_in_check(Color::BLACK));
 }
 
+TEST_F(BoardTestFixture, ZobristHash){
+    board = Board();
 
+    //Starting Position
+    board.set_position_fen("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1");
+    EXPECT_EQ(calculate_zobrist_hash(board), 0x463b96181691fc9c) << "Starting Position";
+
+    std::cout << "Done" << std::endl;
+    
+    //Position after e2e4
+    board.set_position_fen("rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq e3 0 1");
+    EXPECT_EQ(calculate_zobrist_hash(board), 0x823c9b50fd114196) << "Position after e2e4";
+
+    std::cout << "Done" << std::endl;
+
+    //position after e2e4 d75
+    board.set_position_fen("rnbqkbnr/ppp1pppp/8/3p4/4P3/8/PPPP1PPP/RNBQKBNR w KQkq d6 0 2");
+    EXPECT_EQ(calculate_zobrist_hash(board), 0x662fafb965db29d4) << "position after e2e4 d75";
+
+    std::cout << "Done" << std::endl;
+
+    //position after e2e4 d7d5 e4e5
+    board.set_position_fen("rnbqkbnr/ppp1pppp/8/3pP3/8/8/PPPP1PPP/RNBQKBNR b KQkq - 0 2");
+    EXPECT_EQ(calculate_zobrist_hash(board), 0x463b96181691fc9c) << "position after e2e4 d7d5 e4e5";
+
+    std::cout << "Done" << std::endl;
+
+    //position after e2e4 d7d5 e4e5 f7f5
+    board.set_position_fen("rnbqkbnr/ppp1p1pp/8/3pPp2/8/8/PPPP1PPP/RNBQKBNR w KQkq f6 0 3");
+    EXPECT_EQ(calculate_zobrist_hash(board), 0x22a48b5a8e47ff78) << "position after e2e4 d7d5 e4e5 f7f5";
+
+    std::cout << "Done" << std::endl;
+
+    //position after e2e4 d7d5 e4e5 f7f5 e1e2
+    board.set_position_fen("rnbqkbnr/ppp1p1pp/8/3pPp2/8/8/PPPPKPPP/RNBQ1BNR b kq - 0 3");
+    EXPECT_EQ(calculate_zobrist_hash(board), 0x652a607ca3f242c1) << "position after e2e4 d7d5 e4e5 f7f5 e1e2";
+
+    std::cout << "Done" << std::endl;
+
+    //position after e2e4 d7d5 e4e5 f7f5 e1e2 e8f7
+    board.set_position_fen("rnbq1bnr/ppp1pkpp/8/3pPp2/8/8/PPPPKPPP/RNBQ1BNR w - - 0 4");
+    EXPECT_EQ(calculate_zobrist_hash(board), 0x00fdd303c946bdd9) << "position after e2e4 d7d5 e4e5 f7f5 e1e2 e8f7";
+
+    std::cout << "Done" << std::endl;
+
+    //position after a2a4 b7b5 h2h4 b5b4 c2c4
+    board.set_position_fen("rnbqkbnr/p1pppppp/8/8/PpP4P/8/1P1PPPP1/RNBQKBNR b KQkq c3 0 3");
+    EXPECT_EQ(calculate_zobrist_hash(board), 0x3c8123ea7b067637) << "position after a2a4 b7b5 h2h4 b5b4 c2c4";
+
+    std::cout << "Done" << std::endl;
+
+    //position after a2a4 b7b5 h2h4 b5b4 c2c4 b4c3 a1a3
+    board.set_position_fen("rnbqkbnr/p1pppppp/8/8/P6P/R1p5/1P1PPPP1/1NBQKBNR b Kkq - 0 4");
+    EXPECT_EQ(calculate_zobrist_hash(board), 0x5c3f9b829b279560) << "position after a2a4 b7b5 h2h4 b5b4 c2c4 b4c3 a1a3";
+
+    std::cout << "Done" << std::endl;
+
+}

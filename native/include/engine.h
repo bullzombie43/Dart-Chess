@@ -64,6 +64,8 @@ class Engine{
         void order_moves(Move* moves, int num_moves);
 
         Move get_best_move(Board& board);
+        Move get_best_move(Board& board, int depth, Move start_move);
+        Move search_iterative_deepening(Board& board, int time_limit_ms);
 
         void reset_nodes_searched();
 
