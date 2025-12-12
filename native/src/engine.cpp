@@ -70,6 +70,31 @@ int Engine::generate_legal_moves(Board &board, Move* moves)
     return static_cast<int>(out - moves); //out starts at start of moves and goes to last move, so the difference is # of legal moves
 }
 
+int Engine::generate_capture_moves(Board &board, Move *moves)
+{
+    int psuedo_count = generate_psuedo_legal_moves(board, moves);
+
+    Move* out = moves;
+    Move* in = moves;
+
+    for(int i = 0; i < psuedo_count; i++, in++){
+        if(in->captured_piece != Piece::NONE){
+            board.make_move(*in);
+            
+            //increment until we find a legal move basically
+            if(!board.is_in_check(board.sideToMove == Color::WHITE ? Color::BLACK : Color::WHITE)){
+                *out = *in; //overwrites with the next legal move
+                out++; //by the end the front n moves are all the legal moves, and we return n
+                        //that way we when we loop over we only look at the front n moves, aka the legal moves
+            }
+
+            board.undo_move();
+        }
+    }
+
+    return static_cast<int>(out - moves);
+}
+
 uint64_t Engine::perft(Board &board, int depth) {
     if (depth == 0) return 1;
 
@@ -134,7 +159,7 @@ Move Engine::get_best_move(Board &board)
 
     for(int i = 0; i < num_moves; i++){
         board.make_move(moves[i]);
-        int score = -negamaxAB(board, 5, 1, -beta, -alpha);  // Use current alpha/beta
+        int score = -negamaxAB(board, 3, 1, -beta, -alpha);  // Use current alpha/beta
         board.undo_move();
 
         if(score > alpha){  // Found better move
@@ -187,7 +212,7 @@ int Engine::negamax(Board &board, int depth, int ply)
 int Engine::negamaxAB(Board &board, int depth, int ply, int alpha, int beta)
 {
     nodes_searched++;
-    if(depth == 0) return evaluate_position(board);
+    if(depth == 0) return quiesce_search(board, alpha, beta, 0); //extend for captures
 
     Move moves[MAX_NUMBER_OF_MOVES];
     int num_moves = generate_legal_moves(board, moves);
@@ -228,6 +253,63 @@ int Engine::negamaxAB(Board &board, int depth, int ply, int alpha, int beta)
         
         if(score > alpha){
             alpha = score;  // Found new best
+        }
+    }
+
+    return alpha;
+}
+
+int Engine::quiesce_search(Board &board, int alpha, int beta, int depth)
+{
+    int eval = evaluate_position(board);
+    if(depth == 10) return eval; //10 depth limit
+    //Stand Pat
+    if(eval >= beta){ //it's already passed beta so our opponent wouldn't make this move anyways
+        return beta;
+    }
+    if(eval > alpha){
+        alpha = eval;
+    }
+
+    // Delta pruning
+    const int BIG_DELTA = 975; // Your queen value
+
+    if(eval < alpha - BIG_DELTA){
+        return alpha;
+    }
+
+    Move moves[MAX_NUMBER_OF_MOVES];
+    int num_moves = generate_capture_moves(board, moves);
+
+    for(int i = 0; i < num_moves; i++){
+        //Find best remaining move O(N) but hopefully we save time by pruning
+        int best_idx = i;
+        int best_score = score_move(moves[i]);
+        
+        for (int j = i + 1; j < num_moves; j++) {
+            int score = score_move(moves[j]);
+            if (score > best_score) {
+                best_score = score;
+                best_idx = j;
+            }
+        }
+
+        // Swap best move to current position
+        if (best_idx != i) {
+            std::swap(moves[i], moves[best_idx]);
+        }
+
+
+        board.make_move(moves[i]);
+        int score = -quiesce_search(board, -beta, -alpha, depth+1);
+        board.undo_move();
+
+        if(score >= beta){
+            return beta;
+        }
+
+        if( score > alpha ){
+            alpha = score;
         }
     }
 

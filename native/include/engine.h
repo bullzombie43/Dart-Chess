@@ -37,6 +37,9 @@ class Engine{
         // leave the king in check (i.e., making them legal).
         int generate_legal_moves(Board& board, Move* moves);
 
+        // Generate all captures
+        int generate_capture_moves(Board& board, Move* moves);
+
         // Performs the Perft search (counting legal move positions) recursively.
         uint64_t perft(Board& board, int depth);
 
@@ -56,6 +59,7 @@ class Engine{
 
         int negamax(Board& board, int depth, int ply);
         int negamaxAB(Board& board, int depth, int ply, int alpha, int beta);
+        int quiesce_search(Board& board, int alpha, int beta, int depth);
 
         void order_moves(Move* moves, int num_moves);
 
