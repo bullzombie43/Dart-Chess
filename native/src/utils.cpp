@@ -406,7 +406,7 @@ uint64_t calculate_zobrist_hash(const Board &board)
     zobrist_key^= castle_key;
 
     //En Passant
-        if(board.enPassantSquare.has_value()) {
+    if(board.enPassantSquare.has_value()) {
         int ep_square = board.enPassantSquare.value();
         int ep_file = fileOf(ep_square);
         int ep_rank = rankOf(ep_square);
@@ -447,15 +447,15 @@ uint64_t calculate_zobrist_hash(const Board &board)
         }
         
         if(has_capturer) {
-            zobrist_key ^= Random64[772 + ep_file];
+            zobrist_key ^= Random64[EP_START + ep_file];
         }
     }
 
-        //Turn
-        zobrist_key ^= board.sideToMove == Color::WHITE ? Random64[TURN_START] : 0;
+    //Turn
+    zobrist_key ^= board.sideToMove == Color::WHITE ? Random64[TURN_START] : 0;
 
-        return zobrist_key;
-    }
+    return zobrist_key;
+}
 
 // Polyglot: only hash EP if there's a capturing pawn
 bool has_ep_capturer(const Board& board) {

@@ -579,13 +579,13 @@ TEST_F(BoardTestFixture, ZobristHash){
 
     //position after e2e4 d75
     board.set_position_fen("rnbqkbnr/ppp1pppp/8/3p4/4P3/8/PPPP1PPP/RNBQKBNR w KQkq d6 0 2");
-    EXPECT_EQ(calculate_zobrist_hash(board), 0x662fafb965db29d4) << "position after e2e4 d75";
+    EXPECT_EQ(calculate_zobrist_hash(board), 0x0756b94461c50fb0) << "position after e2e4 d75";
 
     std::cout << "Done" << std::endl;
 
     //position after e2e4 d7d5 e4e5
     board.set_position_fen("rnbqkbnr/ppp1pppp/8/3pP3/8/8/PPPP1PPP/RNBQKBNR b KQkq - 0 2");
-    EXPECT_EQ(calculate_zobrist_hash(board), 0x463b96181691fc9c) << "position after e2e4 d7d5 e4e5";
+    EXPECT_EQ(calculate_zobrist_hash(board), 0x662fafb965db29d4) << "position after e2e4 d7d5 e4e5";
 
     std::cout << "Done" << std::endl;
 
