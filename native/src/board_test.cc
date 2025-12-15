@@ -322,6 +322,162 @@ R N B Q K B N R
 )", oss.str());
 }
 
+TEST_F(BoardTestFixture, PromotionAndUndoPST) {
+    board = Board();
+    std::ostringstream oss;
+    
+    // Setup position where white pawn on e7 can promote
+    // Black king on e8, white pawn on e7 ready to promote
+    board.set_position_fen("2k5/4P3/8/8/8/8/8/2K5 w - - 0 1");
+    
+    // Save PST values before move
+    int preMoveWhite = board.get_pst_color(Color::WHITE);
+    int preMoveBlack = board.get_pst_color(Color::BLACK);
+    
+    // Save FEN for comparison
+    std::string originalFen = board.get_fen();
+    
+    // Promotion move: e7 to e8, promote to Queen
+    // from_square = 52 (e7), to_square = 60 (e8)
+    Move promotionMove = {
+        Piece::W_PAWN,      // piece
+        52,                 // from_square (e7)
+        60,                 // to_square (e8)
+        Piece::NONE,        // captured_piece (no capture)
+        Piece::W_QUEEN,     // promoted_piece
+        false,              // is_enpassant
+        false               // is_castling
+    };
+    
+    // Verify initial state
+    EXPECT_EQ(board.get_piece_at(52), Piece::W_PAWN);  // White pawn on e7
+    EXPECT_EQ(board.get_piece_at(60), Piece::NONE);    // e8 is empty
+    
+    // Make promotion move
+    board.make_move(promotionMove);
+    
+    // Verify move was made correctly
+    EXPECT_EQ(board.sideToMove, Color::BLACK);         // Side flipped
+    EXPECT_EQ(board.get_piece_at(52), Piece::NONE);    // e7 is now empty
+    EXPECT_EQ(board.get_piece_at(60), Piece::W_QUEEN); // White queen on e8
+    
+    // PST should have changed (pawn removed, queen added)
+    int afterMoveWhite = board.get_pst_color(Color::WHITE);
+    int afterMoveBlack = board.get_pst_color(Color::BLACK);
+    
+    EXPECT_NE(afterMoveWhite, preMoveWhite) << "White PST should change after promotion";
+    EXPECT_EQ(afterMoveBlack, preMoveBlack) << "Black PST should remain unchanged";
+    
+    // Undo the promotion move
+    board.undo_move();
+    
+    // Verify PST is fully restored
+    EXPECT_EQ(board.get_pst_color(Color::WHITE), preMoveWhite) 
+        << "White PST should be restored after undo";
+    EXPECT_EQ(board.get_pst_color(Color::BLACK), preMoveBlack)
+        << "Black PST should remain unchanged after undo";
+    
+    // Verify board state is fully restored
+    EXPECT_EQ(board.sideToMove, Color::WHITE);
+    EXPECT_EQ(board.get_piece_at(52), Piece::W_PAWN);  // White pawn back on e7
+    EXPECT_EQ(board.get_piece_at(60), Piece::NONE);    // e8 is empty again
+    
+    // Verify FEN is restored
+    std::string restoredFen = board.get_fen();
+    EXPECT_EQ(restoredFen, originalFen) << "FEN should be fully restored after undo";
+    
+    // Verify visual board state
+    oss.str("");
+    board.print_board(oss);
+    EXPECT_EQ(R"(. . k . . . . . 
+. . . . P . . . 
+. . . . . . . . 
+. . . . . . . . 
+. . . . . . . . 
+. . . . . . . . 
+. . . . . . . . 
+. . K . . . . . 
+)", oss.str());
+}
+
+TEST_F(BoardTestFixture, PromotionWithCaptureAndUndoPST) {
+    board = Board();
+    std::ostringstream oss;
+    
+    // Setup position where white pawn on d7 can capture and promote
+    // Black rook on e8, white pawn on d7 ready to capture-promote
+    board.set_position_fen("4r3/3P4/8/8/8/8/8/4K3 w - - 0 1");
+    
+    // Save PST values before move
+    int preMoveWhite = board.get_pst_color(Color::WHITE);
+    int preMoveBlack = board.get_pst_color(Color::BLACK);
+    
+    // Save FEN for comparison
+    std::string originalFen = board.get_fen();
+    
+    // Promotion with capture: d7 takes e8, promote to Queen
+    // from_square = 51 (d7), to_square = 60 (e8)
+    Move promotionCaptureMove = {
+        Piece::W_PAWN,      // piece
+        51,                 // from_square (d7)
+        60,                 // to_square (e8)
+        Piece::B_ROOK,      // captured_piece
+        Piece::W_QUEEN,     // promoted_piece
+        false,              // is_enpassant
+        false               // is_castling
+    };
+    
+    // Verify initial state
+    EXPECT_EQ(board.get_piece_at(51), Piece::W_PAWN);  // White pawn on d7
+    EXPECT_EQ(board.get_piece_at(60), Piece::B_ROOK);  // Black rook on e8
+    
+    // Make promotion with capture move
+    board.make_move(promotionCaptureMove);
+    
+    // Verify move was made correctly
+    EXPECT_EQ(board.sideToMove, Color::BLACK);         // Side flipped
+    EXPECT_EQ(board.get_piece_at(51), Piece::NONE);    // d7 is now empty
+    EXPECT_EQ(board.get_piece_at(60), Piece::W_QUEEN); // White queen on e8
+    
+    // PST should have changed (pawn removed, queen added, black rook captured)
+    int afterMoveWhite = board.get_pst_color(Color::WHITE);
+    int afterMoveBlack = board.get_pst_color(Color::BLACK);
+    
+    EXPECT_NE(afterMoveWhite, preMoveWhite) << "White PST should change after promotion";
+    EXPECT_NE(afterMoveBlack, preMoveBlack) << "Black PST should change (rook captured)";
+    
+    // Undo the promotion with capture move
+    board.undo_move();
+    
+    // Verify PST is fully restored
+    EXPECT_EQ(board.get_pst_color(Color::WHITE), preMoveWhite) 
+        << "White PST should be restored after undo";
+    EXPECT_EQ(board.get_pst_color(Color::BLACK), preMoveBlack)
+        << "Black PST should be restored after undo";
+    
+    // Verify board state is fully restored
+    EXPECT_EQ(board.sideToMove, Color::WHITE);
+    EXPECT_EQ(board.get_piece_at(51), Piece::W_PAWN);  // White pawn back on d7
+    EXPECT_EQ(board.get_piece_at(60), Piece::B_ROOK);  // Black rook restored on e8
+    
+    // Verify FEN is restored
+    std::string restoredFen = board.get_fen();
+    EXPECT_EQ(restoredFen, originalFen) << "FEN should be fully restored after undo";
+    
+    // Verify visual board state
+    oss.str("");
+    board.print_board(oss);
+    EXPECT_EQ(R"(. . . . r . . . 
+. . . P . . . . 
+. . . . . . . . 
+. . . . . . . . 
+. . . . . . . . 
+. . . . . . . . 
+. . . . . . . . 
+. . . . K . . . 
+)", oss.str());
+}
+
 TEST_F(BoardTestFixture, CastlingMakeAndUndo) {
     board = Board();
 
@@ -619,4 +775,301 @@ TEST_F(BoardTestFixture, ZobristHash){
 
     std::cout << "Done" << std::endl;
 
+}
+
+TEST_F(BoardTestFixture, ZobristHashIncremental){
+    board = Board();
+    board.set_position_fen("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1");
+
+    EXPECT_EQ(board.zobrist_key, 0x463b96181691fc9c) << "Starting Position";
+
+    // Move 1: e2e4
+    Move e2e4 = {
+        Piece::W_PAWN,      // piece
+        12,                 // from_square (e2)
+        28,                 // to_square (e4)
+        Piece::NONE,        // captured_piece
+        Piece::NONE,        // promoted_piece
+        false,              // is_enpassant
+        false               // is_castling
+    };
+    board.make_move(e2e4);
+    EXPECT_EQ(board.zobrist_key, 0x823c9b50fd114196) << "Position after e2e4";
+
+    // Move 2: d7d5
+    Move d7d5 = {
+        Piece::B_PAWN,      // piece
+        51,                 // from_square (d7)
+        35,                 // to_square (d5)
+        Piece::NONE,        // captured_piece
+        Piece::NONE,        // promoted_piece
+        false,              // is_enpassant
+        false               // is_castling
+    };
+    board.make_move(d7d5);
+    EXPECT_EQ(board.zobrist_key, 0x0756b94461c50fb0) << "Position after e2e4 d7d5";
+
+    // Move 3: e4e5
+    Move e4e5 = {
+        Piece::W_PAWN,      // piece
+        28,                 // from_square (e4)
+        36,                 // to_square (e5)
+        Piece::NONE,        // captured_piece
+        Piece::NONE,        // promoted_piece
+        false,              // is_enpassant
+        false               // is_castling
+    };
+    board.make_move(e4e5);
+    EXPECT_EQ(board.zobrist_key, 0x662fafb965db29d4) << "Position after e2e4 d7d5 e4e5";
+
+    // Move 4: f7f5
+    Move f7f5 = {
+        Piece::B_PAWN,      // piece
+        53,                 // from_square (f7)
+        37,                 // to_square (f5)
+        Piece::NONE,        // captured_piece
+        Piece::NONE,        // promoted_piece
+        false,              // is_enpassant
+        false               // is_castling
+    };
+    board.make_move(f7f5);
+    EXPECT_EQ(board.zobrist_key, 0x22a48b5a8e47ff78) << "Position after e2e4 d7d5 e4e5 f7f5";
+
+    // Move 5: e1e2 (White king moves, loses castling rights)
+    Move e1e2 = {
+        Piece::W_KING,      // piece
+        4,                  // from_square (e1)
+        12,                 // to_square (e2)
+        Piece::NONE,        // captured_piece
+        Piece::NONE,        // promoted_piece
+        false,              // is_enpassant
+        false               // is_castling
+    };
+    board.make_move(e1e2);
+    EXPECT_EQ(board.zobrist_key, 0x652a607ca3f242c1) << "Position after e2e4 d7d5 e4e5 f7f5 e1e2";
+
+    // Move 6: e8f7 (Black king moves, loses castling rights)
+    Move e8f7 = {
+        Piece::B_KING,      // piece
+        60,                 // from_square (e8)
+        53,                 // to_square (f7)
+        Piece::NONE,        // captured_piece
+        Piece::NONE,        // promoted_piece
+        false,              // is_enpassant
+        false               // is_castling
+    };
+    board.make_move(e8f7);
+    EXPECT_EQ(board.zobrist_key, 0x00fdd303c946bdd9) << "Position after e2e4 d7d5 e4e5 f7f5 e1e2 e8f7";
+
+    // New position: a2a4 b7b5 h2h4 b5b4 c2c4
+    board.set_position_fen("rnbqkbnr/p1pppppp/8/8/PpP4P/8/1P1PPPP1/RNBQKBNR b KQkq c3 0 3");
+    EXPECT_EQ(board.zobrist_key, 0x3c8123ea7b067637) << "Position after a2a4 b7b5 h2h4 b5b4 c2c4";
+
+    // Move: b4c3 (pawn capture)
+    Move b4c3 = {
+        Piece::B_PAWN,      // piece
+        25,                 // from_square (b4)
+        18,                 // to_square (c3)
+        Piece::W_PAWN,        // captured_piece
+        Piece::NONE,        // promoted_piece
+        true,              // is_enpassant
+        false               // is_castling
+    };
+
+    board.make_move(b4c3);
+    EXPECT_EQ(board.zobrist_key, calculate_zobrist_hash(board)) << "Position after a2a4 b7b5 h2h4 b5b4 c2c4 b4c3" ;
+
+    // Move: a1a3 (rook moves, loses queenside castling)
+    Move a1a3 = {
+        Piece::W_ROOK,      // piece
+        0,                  // from_square (a1)
+        16,                 // to_square (a3)
+        Piece::NONE,        // captured_piece
+        Piece::NONE,        // promoted_piece
+        false,              // is_enpassant
+        false               // is_castling
+    };
+    board.make_move(a1a3);
+    EXPECT_EQ(board.zobrist_key, 0x5c3f9b829b279560) << "Position after a2a4 b7b5 h2h4 b5b4 c2c4 b4c3 a1a3";
+}
+
+TEST_F(BoardTestFixture, ZobristHashUndoRestoration){
+    board = Board();
+    board.set_position_fen("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1");
+
+    uint64_t originalHash = board.zobrist_key;
+    EXPECT_EQ(originalHash, 0x463b96181691fc9c) << "Starting Position";
+
+    // Test 1: Regular pawn move
+    Move e2e4 = {
+        Piece::W_PAWN, 12, 28, Piece::NONE, Piece::NONE, false, false
+    };
+    board.make_move(e2e4);
+    EXPECT_NE(board.zobrist_key, originalHash) << "Hash should change after move";
+    
+    board.undo_move();
+    EXPECT_EQ(board.zobrist_key, originalHash) << "Hash should restore after undo (pawn move)";
+
+    // Test 2: Sequence with en passant target
+    board.make_move(e2e4);
+    uint64_t afterE2E4 = board.zobrist_key;
+    
+    Move d7d5 = {
+        Piece::B_PAWN, 51, 35, Piece::NONE, Piece::NONE, false, false
+    };
+    board.make_move(d7d5);
+    uint64_t afterD7D5 = board.zobrist_key;
+    
+    board.undo_move();
+    EXPECT_EQ(board.zobrist_key, afterE2E4) << "Hash should restore after undo (en passant target set)";
+    
+    board.undo_move();
+    EXPECT_EQ(board.zobrist_key, originalHash) << "Hash should restore to original after double undo";
+
+    // Test 3: King move (castling rights change)
+    board.set_position_fen("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1");
+    originalHash = board.zobrist_key;
+    
+    Move e1e2 = {
+        Piece::W_KING, 4, 12, Piece::NONE, Piece::NONE, false, false
+    };
+    board.make_move(e1e2);
+    
+    board.undo_move();
+    EXPECT_EQ(board.zobrist_key, originalHash) << "Hash should restore after undo (king move, castling rights)";
+
+    // Test 4: Rook move (partial castling rights loss)
+    board.set_position_fen("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1");
+    originalHash = board.zobrist_key;
+    
+    Move a1a3 = {
+        Piece::W_ROOK, 0, 16, Piece::NONE, Piece::NONE, false, false
+    };
+    board.make_move(a1a3);
+    
+    board.undo_move();
+    EXPECT_EQ(board.zobrist_key, originalHash) << "Hash should restore after undo (rook move, queenside castling)";
+
+    // Test 5: Capture
+    board.set_position_fen("rnbqkbnr/ppp1pppp/8/3p4/4P3/8/PPPP1PPP/RNBQKBNR w KQkq - 0 2");
+    originalHash = board.zobrist_key;
+    
+    Move e4d5 = {
+        Piece::W_PAWN, 28, 35, Piece::B_PAWN, Piece::NONE, false, false
+    };
+    board.make_move(e4d5);
+    
+    board.undo_move();
+    EXPECT_EQ(board.zobrist_key, originalHash) << "Hash should restore after undo (capture)";
+
+    // Test 6: En passant capture
+    board.set_position_fen("rnbqkbnr/p1pppppp/8/8/PpP4P/8/1P1PPPP1/RNBQKBNR b KQkq c3 0 3");
+    originalHash = board.zobrist_key;
+    
+    Move b4c3 = {
+        Piece::B_PAWN, 25, 18, Piece::W_PAWN, Piece::NONE, true, false
+    };
+    board.make_move(b4c3);
+    
+    board.undo_move();
+    EXPECT_EQ(board.zobrist_key, originalHash) << "Hash should restore after undo (en passant)";
+
+    // Test 7: Promotion
+    board.set_position_fen("4k3/4P3/8/8/8/8/8/4K3 w - - 0 1");
+    originalHash = board.zobrist_key;
+    
+    Move e7e8q = {
+        Piece::W_PAWN, 52, 60, Piece::NONE, Piece::W_QUEEN, false, false
+    };
+    board.make_move(e7e8q);
+    
+    board.undo_move();
+    EXPECT_EQ(board.zobrist_key, originalHash) << "Hash should restore after undo (promotion)";
+
+    // Test 8: Promotion with capture
+    board.set_position_fen("4r3/3P4/8/8/8/8/8/4K3 w - - 0 1");
+    originalHash = board.zobrist_key;
+    
+    Move d7e8q = {
+        Piece::W_PAWN, 51, 60, Piece::B_ROOK, Piece::W_QUEEN, false, false
+    };
+    board.make_move(d7e8q);
+    
+    board.undo_move();
+    EXPECT_EQ(board.zobrist_key, originalHash) << "Hash should restore after undo (promotion with capture)";
+
+    // Test 9: Castling (kingside)
+    board.set_position_fen("r3k2r/8/8/8/8/8/8/R3K2R w KQkq - 0 1");
+    originalHash = board.zobrist_key;
+    
+    Move e1g1 = {
+        Piece::W_KING, 4, 6, Piece::NONE, Piece::NONE, false, true
+    };
+    board.make_move(e1g1);
+    
+    board.undo_move();
+    EXPECT_EQ(board.zobrist_key, originalHash) << "Hash should restore after undo (kingside castling)";
+
+    // Test 10: Castling (queenside)
+    Move e1c1 = {
+        Piece::W_KING, 4, 2, Piece::NONE, Piece::NONE, false, true
+    };
+    board.make_move(e1c1);
+    
+    board.undo_move();
+    EXPECT_EQ(board.zobrist_key, originalHash) << "Hash should restore after undo (queenside castling)";
+}
+
+TEST_F(BoardTestFixture, ZobristHashMultipleUndos){
+    board = Board();
+    board.set_position_fen("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1");
+
+    uint64_t originalHash = board.zobrist_key;
+
+    // Make a sequence of moves
+    std::vector<Move> moves = {
+        {Piece::W_PAWN, 12, 28, Piece::NONE, Piece::NONE, false, false},  // e2e4
+        {Piece::B_PAWN, 52, 44, Piece::NONE, Piece::NONE, false, false},  // e7e5
+        {Piece::W_KNIGHT, 6, 21, Piece::NONE, Piece::NONE, false, false}, // g1f3
+        {Piece::B_KNIGHT, 62, 45, Piece::NONE, Piece::NONE, false, false},// g8f6
+        {Piece::W_BISHOP, 5, 26, Piece::NONE, Piece::NONE, false, false}, // f1c4
+    };
+
+    std::vector<uint64_t> hashHistory;
+    hashHistory.push_back(originalHash);
+
+    // Make all moves and save hashes
+    for (const auto& move : moves) {
+        board.make_move(const_cast<Move&>(move));
+        hashHistory.push_back(board.zobrist_key);
+    }
+
+    // Undo all moves and verify each hash
+    for (int i = moves.size() - 1; i >= 0; --i) {
+        board.undo_move();
+        EXPECT_EQ(board.zobrist_key, hashHistory[i]) 
+            << "Hash should match after undoing move " << i;
+    }
+
+    EXPECT_EQ(board.zobrist_key, originalHash) 
+        << "Hash should return to original after undoing all moves";
+}
+
+TEST_F(BoardTestFixture, ZobristHashRedoAfterUndo){
+    board = Board();
+    board.set_position_fen("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1");
+
+    Move e2e4 = {
+        Piece::W_PAWN, 12, 28, Piece::NONE, Piece::NONE, false, false
+    };
+
+    // Make move, save hash, undo, make again
+    board.make_move(e2e4);
+    uint64_t hashAfterMove = board.zobrist_key;
+    
+    board.undo_move();
+    board.make_move(e2e4);
+    
+    EXPECT_EQ(board.zobrist_key, hashAfterMove) 
+        << "Hash should be identical when making the same move again after undo";
 }

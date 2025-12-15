@@ -31,6 +31,8 @@ Board::Board() {
 
     update_color_bitboard();
     init_pst_tables(); //initial values of pst_tables should be the same;
+    zobrist_key = calculate_zobrist_hash(*this);
+    old_ep_zobrist = 0;
 }
 
 Bitboard Board::get_piece_bitboard(Piece piece) const
@@ -88,6 +90,10 @@ void Board::set_position_fen(const std::string &fen)
     
     //Update pst
     init_pst_tables();
+
+    //Update zobrist hash
+    zobrist_key = calculate_zobrist_hash(*this);
+    old_ep_zobrist = calculate_ep_hash(*this);
 }
 
 //We assume a move passed into here is valid
@@ -99,7 +105,8 @@ void Board::make_move(Move& move) {
         move.captured_piece,
         enPassantSquare,
         castlingRightsState,
-        move.promoted_piece != Piece::NONE
+        move.promoted_piece != Piece::NONE,
+        zobrist_key
     };
 
     if(move.is_enpassant && move.captured_piece != Piece::NONE){
@@ -113,6 +120,8 @@ void Board::make_move(Move& move) {
     }
 
     //En Passant updates
+    zobrist_key ^= old_ep_zobrist;
+
     if(move.piece == Piece::W_PAWN && (move.from_square / 8 == 1) && (move.to_square / 8 == 3)){
         enPassantSquare = move.from_square + 8;
         color_can_en_passant = Color::BLACK;
@@ -123,6 +132,10 @@ void Board::make_move(Move& move) {
         enPassantSquare = std::nullopt;
         color_can_en_passant = Color::NONE;
     }
+
+    uint64_t ep_zobrist = calculate_ep_hash(*this);
+    zobrist_key ^= ep_zobrist;
+    old_ep_zobrist = ep_zobrist;
 
     //Castling Rights updates
     if(move.piece == W_KING){
@@ -148,35 +161,51 @@ void Board::make_move(Move& move) {
     }
 
     //Regular Logic & Promotion
-
     Bitboard startMask = 1ULL << move.from_square;
     Bitboard newBitboard = bitboard & (~startMask);
 
     Bitboard endMask = 1ULL << move.to_square;
 
-    //Promotion
-    if(move.promoted_piece != Piece::NONE){
-        // Remove pawn from its bitboard (already done in newBitboard)
-      bitboard_array[move.piece] = newBitboard; // update pawn board
-
-      // Add the promoted piece to its bitboard
-      Bitboard promoBitboard = bitboard_array[move.promoted_piece]; //We know its not none
-      bitboard_array[move.promoted_piece] = promoBitboard | endMask;
-    } else { //Normal Logic
-        newBitboard = newBitboard | endMask;
-        bitboard_array[move.piece] = newBitboard;
-    }
-
-    //Update PST
     Color color = colorOf(static_cast<Piece>(move.piece));
     int pstFromSquare = color == Color::WHITE ? flip_array[move.from_square] : move.from_square;
     int pstToSquare = color == Color::WHITE ? flip_array[move.to_square]: move.to_square;
 
+    //Update Zobrist Hash (From XOR)
+    zobrist_key ^= Random64[64 * piece_to_zobrist_index(static_cast<Piece>(move.piece)) + 8 * rankOf(move.from_square) + fileOf(move.from_square)]; 
+
+    //Promotion
+    if(move.promoted_piece != Piece::NONE){
+        // Remove pawn from its bitboard (already done in newBitboard)
+        bitboard_array[move.piece] = newBitboard; // update pawn board
+
+        // Add the promoted piece to its bitboard
+        Bitboard promoBitboard = bitboard_array[move.promoted_piece]; //We know its not none
+        bitboard_array[move.promoted_piece] = promoBitboard | endMask;
+
+        //promotion PST 
+        pst_colors[static_cast<int>(color)] += piece_square_table[static_cast<int>(typeOf(static_cast<Piece>(move.promoted_piece)))][pstToSquare]; 
+
+        //Promotion Zobrist
+        zobrist_key ^= Random64[64 * piece_to_zobrist_index(static_cast<Piece>(move.promoted_piece)) + 8 * rankOf(move.to_square) + fileOf(move.to_square)];
+
+    } else { //Normal Logic
+        newBitboard = newBitboard | endMask;
+        bitboard_array[move.piece] = newBitboard;
+
+        //normal PST 
+        pst_colors[static_cast<int>(color)] += piece_square_table[static_cast<int>(typeOf(static_cast<Piece>(move.piece)))][pstToSquare];
+
+        //normal zobrist
+        zobrist_key ^= Random64[64 * piece_to_zobrist_index(static_cast<Piece>(move.piece)) + 8 * rankOf(move.to_square) + fileOf(move.to_square)];
+    }
+
+    //Update PST
     pst_colors[static_cast<int>(color)] -= piece_square_table[static_cast<int>(typeOf(static_cast<Piece>(move.piece)))][pstFromSquare];
-    pst_colors[static_cast<int>(color)] += piece_square_table[static_cast<int>(typeOf(static_cast<Piece>(move.piece)))][pstToSquare];
 
     //Switch turn
+    zobrist_key ^= Random64[TURN_START];
     sideToMove = sideToMove == Color::WHITE ? Color::BLACK : Color::WHITE;
+    
 
     update_color_bitboard();
 }
@@ -190,6 +219,8 @@ void Board::undo_move() {
     Move_State last = move_history[--history_ply];
 
     Move move = last.move;
+
+    zobrist_key = last.zobrist_hash;
 
     //Revert side
     sideToMove = sideToMove == Color::WHITE ? Color::BLACK : Color::WHITE;
@@ -251,19 +282,21 @@ void Board::undo_move() {
         pst_colors[static_cast<int>(color)] += piece_square_table[type][square];
     }
 
-    //undo promotion
-    if (move.promoted_piece != Piece::NONE) {
-      // Remove the promoted piece from the board
-      bitboard_array[move.promoted_piece] &= ~(1ULL << move.to_square);
-    }
-
-    //Undo PST
     Color color = colorOf(static_cast<Piece>(move.piece));
     int pstFromSquare = color == Color::WHITE ? flip_array[move.from_square] : move.from_square;
     int pstToSquare = color == Color::WHITE ? flip_array[move.to_square]: move.to_square;
 
+    //undo promotion
+    if (move.promoted_piece != Piece::NONE) {
+        // Remove the promoted piece from the board
+        bitboard_array[move.promoted_piece] &= ~(1ULL << move.to_square);
+
+        pst_colors[static_cast<int>(color)] -= piece_square_table[static_cast<int>(typeOf(static_cast<Piece>(move.promoted_piece)))][pstToSquare];
+    } else { //Normal
+        pst_colors[static_cast<int>(color)] -= piece_square_table[static_cast<int>(typeOf(static_cast<Piece>(move.piece)))][pstToSquare];
+    }
+
     pst_colors[static_cast<int>(color)] += piece_square_table[static_cast<int>(typeOf(static_cast<Piece>(move.piece)))][pstFromSquare];
-    pst_colors[static_cast<int>(color)] -= piece_square_table[static_cast<int>(typeOf(static_cast<Piece>(move.piece)))][pstToSquare];
 
     update_color_bitboard();
 }
@@ -463,7 +496,23 @@ void Board::print_board(std::ostream& os) const {
 }
 
 void Board::remove_castling_right(CastlingRights right) {
+    uint8_t removedRights = castlingRightsState & static_cast<uint8_t>(right);
     castlingRightsState &= ~static_cast<uint8_t>(right);
+    
+    if (removedRights) {
+        castlingRightsState &= ~static_cast<uint8_t>(right);
+        
+        // XOR out each individual right that was removed
+        if (removedRights & static_cast<uint8_t>(CastlingRights::WHITE_KINGSIDE))
+            zobrist_key ^= Random64[CASTLE_START + 0];
+        if (removedRights & static_cast<uint8_t>(CastlingRights::WHITE_QUEENSIDE))
+            zobrist_key ^= Random64[CASTLE_START + 1];
+        if (removedRights & static_cast<uint8_t>(CastlingRights::BLACK_KINGSIDE))
+            zobrist_key ^= Random64[CASTLE_START + 2];
+        if (removedRights & static_cast<uint8_t>(CastlingRights::BLACK_QUEENSIDE))
+            zobrist_key ^= Random64[CASTLE_START + 3];
+    }
+
 }
 
 void Board::remove_all_castling_rights_white() {
@@ -541,6 +590,8 @@ void Board::remove_captured_piece(int square, Piece capturedPiece)
     if(capturedPiece == Piece::B_ROOK && square == 56) remove_castling_right(CastlingRights::BLACK_QUEENSIDE);
     if(capturedPiece == Piece::B_ROOK && square == 63) remove_castling_right(CastlingRights::BLACK_KINGSIDE);
 
+    zobrist_key ^= Random64[64 * piece_to_zobrist_index(static_cast<Piece>(capturedPiece)) + 8 * rankOf(square) + fileOf(square)];
+
     //Update PST
     Color color = colorOf(capturedPiece);
     square = color == Color::WHITE ? flip_array[square] : square;
@@ -585,6 +636,11 @@ void Board::castle_move(Move &king_move)
 
     pst_colors[static_cast<int>(color)] -= piece_square_table[static_cast<int>(typeOf(static_cast<Piece>(rookPiece)))][pstFromSquare];
     pst_colors[static_cast<int>(color)] += piece_square_table[static_cast<int>(typeOf(static_cast<Piece>(rookPiece)))][pstToSquare];
+
+    //Update rook Zobrist
+    zobrist_key ^= Random64[64 * piece_to_zobrist_index(static_cast<Piece>(rookPiece)) + 8 * rankOf(rookStart) + fileOf(rookStart)];
+    zobrist_key ^= Random64[64 * piece_to_zobrist_index(static_cast<Piece>(rookPiece)) + 8 * rankOf(rookEnd) + fileOf(rookEnd)];
+
 }
 
 bool Board::is_square_attacked(int target, Color attacking_color) const

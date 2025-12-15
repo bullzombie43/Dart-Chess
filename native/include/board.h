@@ -115,7 +115,8 @@ struct Move_State {
     uint8_t captured_piece;
     std::optional<int> enPassantSquare;
     uint8_t castling_rights;
-    bool wasPromotion; 
+    bool wasPromotion;
+    uint64_t zobrist_hash; 
 };
 
 class Board {
@@ -148,6 +149,9 @@ class Board {
         /// @brief 0 is whites table 1 is blacks table
         std::array<int, 2> pst_colors; 
 
+        uint64_t zobrist_key;
+
+
         Board();
 
         Bitboard get_piece_bitboard(Piece piece) const;
@@ -171,6 +175,7 @@ class Board {
 
         Move_State move_history[2048];
         int history_ply;
+        uint64_t old_ep_zobrist;
 
         //Castling stuff
         void remove_castling_right(CastlingRights right);

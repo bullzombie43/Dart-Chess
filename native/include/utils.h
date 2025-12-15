@@ -325,6 +325,7 @@ constexpr int TURN_START = 780;
 
 uint64_t calculate_zobrist_hash(const Board& board);
 bool has_ep_capturer(const Board& board);
+uint64_t calculate_ep_hash(const Board& board);
 
 // Alternative: Lookup table (faster, more readable)
 inline int piece_to_zobrist_index(Piece piece) {
