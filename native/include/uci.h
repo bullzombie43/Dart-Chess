@@ -1,5 +1,8 @@
+#pragma once
 #include "board.h"
 #include "engine.h"
+
+constexpr int DEFAULT_SEARCH_TIME_MS = 100;
 
 class UCIEngine {
     private:
@@ -24,3 +27,4 @@ class UCIEngine {
         std::string move_to_uci(const Move& move);
 
 };
+

@@ -5,11 +5,9 @@
 #include <iostream>
 #include "engine.h"
 #include <limits>
+#include "transposition.h"
 
-Engine::Engine()
-{
-    nodes_searched = 0;
-}
+Engine::Engine() : transposition_table(DEFAULT_SIZE), nodes_searched(0) {}
 
 int Engine::generate_psuedo_legal_moves(const Board &board, Move *moves)
 {
@@ -214,8 +212,6 @@ Move Engine::search_iterative_deepening(Board &board, int time_limit_ms)
         auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(
             std::chrono::high_resolution_clock::now() - start_time).count();
 
-
-
         best_move_overall = new_best;
     }
 
@@ -264,6 +260,29 @@ int Engine::negamax(Board &board, int depth, int ply)
 int Engine::negamaxAB(Board &board, int depth, int ply, int alpha, int beta)
 {
     nodes_searched++;
+
+    //Check Transposition Table
+    auto tt_entry = transposition_table.get_entry(board.zobrist_key);
+    
+    if (tt_entry.has_value() && tt_entry.value().depth >= depth) {
+        TTEntry entry = tt_entry.value();
+        // Use TT entry based on bound type
+        if (entry.flag == HASH_EXACT) {
+            return entry.score;
+        }
+        else if (entry.flag == HASH_BETA) {
+            alpha = std::max(alpha, static_cast<int>(entry.score));
+        }
+        else if (entry.flag == HASH_ALPHA) {
+            beta = std::min(beta, static_cast<int>(entry.score));
+        }
+        
+        if (alpha >= beta) {
+            return entry.score;
+        }
+    }
+
+
     if(depth == 0) return quiesce_search(board, alpha, beta, 0); //extend for captures
 
     Move moves[MAX_NUMBER_OF_MOVES];
@@ -274,6 +293,20 @@ int Engine::negamaxAB(Board &board, int depth, int ply, int alpha, int beta)
             return -30000 + ply;
         }
         return 0;
+    }
+
+    Move best_move = Move(Piece::NONE, 0, 0, Piece::NONE, Piece::NONE, false, false);
+    int original_alpha = alpha;
+
+    // Try TT move first if available
+    if (tt_entry != std::nullopt && tt_entry.value().best_move.piece != Piece::NONE) {
+        // Move TT move to front
+        for (int i = 0; i < num_moves; i++) {
+            if (moves[i] == tt_entry->best_move) {
+                std::swap(moves[0], moves[i]);
+                break;
+            }
+        }
     }
 
     for(int i = 0; i < num_moves; i++){
@@ -294,19 +327,38 @@ int Engine::negamaxAB(Board &board, int depth, int ply, int alpha, int beta)
             std::swap(moves[i], moves[best_idx]);
         }
 
-
         board.make_move(moves[i]);
         int score = -negamaxAB(board, depth-1, ply+1, -beta, -alpha);
         board.undo_move();
 
         if(score >= beta){
+            // Beta cutoff - store lower bound
+            transposition_table.store(
+                board.zobrist_key,
+                beta,
+                depth,
+                HASH_BETA,
+                moves[i]
+            );
             return beta;  // Beta cutoff
         }
         
         if(score > alpha){
             alpha = score;  // Found new best
+            best_move = moves[i];
         }
     }
+
+    // Store in transposition table
+    uint8_t flag = (alpha <= original_alpha) ? HASH_ALPHA : HASH_EXACT;
+    
+    transposition_table.store(
+        board.zobrist_key,
+        alpha,
+        depth,
+        flag,
+        best_move
+    );
 
     return alpha;
 }

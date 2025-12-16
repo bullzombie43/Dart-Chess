@@ -36,28 +36,15 @@
     include_directories(include)
 
     # Source files
-    set(SOURCES
-        src/main.cpp
+    add_library(chess_core
         src/board.cpp
         src/utils.cpp
         src/engine.cpp
+        src/transposition.cpp
+        bridge/chess_bridge.cpp
     )
 
-    #Bridge source files (NEW!)
-    set(BRIDGE_SOURCES
-        bridge/chess_bridge.cpp
-        src/board.cpp
-        src/utils.cpp
-        src/engine.cpp
-    )
-    
-    #UCI source files
-    set(UCI_SOURCES
-        src/engine.cpp 
-        src/uci.cpp 
-        src/board.cpp 
-        src/utils.cpp
-    )
+    target_include_directories(chess_core PUBLIC src bridge)
 
     #GTest Executable
     enable_testing()
@@ -65,25 +52,22 @@
     add_executable(
         board_test
         src/board_test.cc
-        src/board.cpp
-        src/utils.cpp
     )
 
     target_link_libraries(
         board_test
+        chess_core
         GTest::gtest_main
     )
 
     add_executable(
         engine_test
         src/engine_test.cc
-        src/board.cpp
-        src/utils.cpp
-        src/engine.cpp
     )
 
     target_link_libraries(
         engine_test
+        chess_core
         GTest::gtest_main
     )
 
@@ -91,11 +75,11 @@
     add_executable(
         bridge_test
         bridge/chess_bridge_test.cpp
-        ${BRIDGE_SOURCES}
     )
 
     target_link_libraries(
         bridge_test
+        chess_core
         GTest::gtest_main
     )
 
@@ -105,10 +89,17 @@
     gtest_discover_tests(bridge_test)
     
     # Create executable
-    add_executable(chess_engine ${SOURCES}) 
+    add_executable(chess_engine src/main.cpp) 
+
+    target_link_libraries(chess_engine chess_core)
 
     # UCI executable
-    add_executable(chess_engine_uci ${UCI_SOURCES})
+    add_executable(
+        chess_engine_uci 
+        src/uci.cpp
+    )
+
+    target_link_libraries(chess_engine_uci chess_core)
 
     # Set output name
     set_target_properties(chess_engine_uci PROPERTIES OUTPUT_NAME "chess_engine_uci")
@@ -118,7 +109,9 @@
     # ============================================================================
 
     # Build bridge as a shared library
-    add_library(chess_bridge SHARED ${BRIDGE_SOURCES})
+    add_library(chess_bridge SHARED src/main.cpp)
+
+    target_link_libraries(chess_bridge chess_core)
 
     # Set library output name (will create libchess_bridge.dylib on macOS, etc.)
     set_target_properties(chess_bridge PROPERTIES

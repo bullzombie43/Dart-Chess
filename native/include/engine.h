@@ -1,6 +1,7 @@
 #pragma once
 #include <vector>
 #include "board.h"
+#include "transposition.h"
 
 struct ScoredMove {
     Move move;
@@ -74,6 +75,7 @@ class Engine{
 
     private:
         uint64_t nodes_searched;
+        TranspositionTable transposition_table;
 
         // Helper function to generate moves for a single piece type/color
         void generate_moves_from_square(const Board& board, Piece piece, uint8_t index, Move* moves, int& move_count);
@@ -141,3 +143,4 @@ inline std::string move_to_string(Move m) {
 
 constexpr int MAX_NUMBER_OF_MOVES = 256;
 constexpr int MAX_DEPTH = 6;               // or whatever max perft depth you need
+constexpr int DEFAULT_SIZE = 16; //mb

@@ -179,7 +179,7 @@ Piece UCIEngine::parse_promotion(char c, Color color)
 
 Move UCIEngine::search_position(int depth)
 {
-    Move best_move = engine.search_iterative_deepening(board, 10);
+    Move best_move = engine.search_iterative_deepening(board, DEFAULT_SEARCH_TIME_MS);
     
     return best_move;
 }
