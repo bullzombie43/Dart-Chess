@@ -54,4 +54,6 @@ app.*.map.json
 /native/build-debug/
 /native/build-release/
 
-
+#Logs
+/native/logs
+/native/test_versions
