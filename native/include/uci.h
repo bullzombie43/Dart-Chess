@@ -2,7 +2,7 @@
 #include "board.h"
 #include "engine.h"
 
-constexpr int DEFAULT_SEARCH_TIME_MS = 100;
+constexpr int DEFAULT_SEARCH_TIME_MS = 500;
 
 class UCIEngine {
     private:
