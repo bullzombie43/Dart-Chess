@@ -1,5 +1,6 @@
 import 'package:chess_ui/game/chess_engine.dart';
 import 'package:chess_ui/ui/board_background.dart';
+import 'package:chess_ui/ui/board_controls.dart';
 import 'package:chess_ui/ui/board_pieces.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/svg.dart';
@@ -12,7 +13,7 @@ void main() async {
   await windowManager.ensureInitialized();
 
   WindowOptions windowOptions = const WindowOptions(
-    size: Size(800, 800),
+    size: Size(1000, 800),
     center: true,
     backgroundColor: Colors.transparent,
     skipTaskbar: false,
@@ -22,7 +23,7 @@ void main() async {
   windowManager.waitUntilReadyToShow(windowOptions, () async {
     await windowManager.show();
     await windowManager.focus();
-    await windowManager.setAspectRatio(1.0);
+    await windowManager.setAspectRatio(10.0/8.0);
   });
 
   ChessBoard board = ChessBoard();
@@ -160,7 +161,7 @@ class _MyHomePageState extends State<MyHomePage> {
           target: index,
           board: widget.board,
           engine: widget.engine,
-          color: piece.isWhite ? Color.white : Color.black,
+          color: piece.isWhite ? ChessColor.white : ChessColor.black,
           legalMoves: legalMoves
         );
 
@@ -179,7 +180,7 @@ class _MyHomePageState extends State<MyHomePage> {
 
         // Check promotion before updating UI
         if (isPromotionAttempt(PieceType.fromValue(move.piece), move.fromSquare, move.toSquare)) {
-          PieceType? choice = await showPromotionDialog(context, PieceType.fromValue(move.piece).isWhite ? Color.white : Color.black);
+          PieceType? choice = await showPromotionDialog(context, PieceType.fromValue(move.piece).isWhite ? ChessColor.white : ChessColor.black);
           if (choice == null) return; // user cancelled
           print("Entered");
           fullPlayerMove(
@@ -211,7 +212,7 @@ class _MyHomePageState extends State<MyHomePage> {
             target: index,
             board: widget.board,
             engine: widget.engine,
-            color: widget.board.getPieceAt(index).isWhite ? Color.white : Color.black,
+            color: widget.board.getPieceAt(index).isWhite ? ChessColor.white : ChessColor.black,
             legalMoves: legalMoves
           );
 
@@ -255,43 +256,48 @@ class _MyHomePageState extends State<MyHomePage> {
 
   @override
   Widget build(BuildContext context) {
-    // This method is rerun every time setState is called, for instance as done
-    // by the _incrementCounter method above.
-    //
-    // The Flutter framework has been optimized to make rerunning build methods
-    // fast, so that you can just rebuild anything that needs updating rather
-    // than having to individually change instances of widgets.
+    final size = MediaQuery.of(context).size; // full window size
+    final defaultPadding = size.width * 0.024; // 2.4% of width, 24 pixels at default window size
+
+
     return Scaffold(
       backgroundColor: const material.Color.fromARGB(255, 140, 208, 161),
-      body:  Center(
-        // Center is a layout widget. It takes a single child and positions it
-        // in the middle of the parent.
-        child: Padding(
-          padding:  const EdgeInsets.all(24.0),
-          child: Stack(
-            children: [
-              Boardbackground(
-                markers: markers, 
-                boardSize: widget.boardSize, 
-                orientation: widget.orientation,
-                highlights: highlights,
+      body:  Row(
+        children: [
+          Padding(
+            padding: EdgeInsets.all(defaultPadding),
+            child: 
+              Stack(
+                children: [
+                  Boardbackground(
+                    markers: markers, 
+                    boardSize: widget.boardSize, 
+                    orientation: widget.orientation,
+                    highlights: highlights,
+                  ),
+                  BoardPieces(
+                    board: widget.board,
+                    size: widget.boardSize,
+                    orientation: widget.orientation, 
+                    onTap: handleSquareTap, 
+                    onDragEnd: handlePieceDragEnd,
+                    
+                  )
+                ],
               ),
-              BoardPieces(
-                board: widget.board,
-                size: widget.boardSize,
-                orientation: widget.orientation, 
-                onTap: handleSquareTap, 
-                onDragEnd: handlePieceDragEnd,
-                
+            ),
+            Expanded(
+              child: Padding(
+                padding: EdgeInsetsGeometry.fromLTRB(0, defaultPadding, defaultPadding, defaultPadding),
+                child: const BoardControls(totalTime: 80.0, timeIncrement: 0.0),
               )
-            ],
-          ),
+            )
+          ],
         )
-      ),
-    );
+      );
   }
 
-  Map<int, Marker> _generateMarkers({required int target, required ChessBoard board, required ChessEngine engine, required Color color, required Map<int, Move> legalMoves}){
+  Map<int, Marker> _generateMarkers({required int target, required ChessBoard board, required ChessEngine engine, required ChessColor color, required Map<int, Move> legalMoves}){
     Map<int, Marker> markers = {};
 
     if(board.getSideToMove() != color){
@@ -314,8 +320,8 @@ class _MyHomePageState extends State<MyHomePage> {
     return highlights;
   }
 
-  Future<PieceType?> showPromotionDialog(BuildContext context, Color color) async {
-    List<PieceType> promotionChoices = color == Color.white
+  Future<PieceType?> showPromotionDialog(BuildContext context, ChessColor color) async {
+    List<PieceType> promotionChoices = color == ChessColor.white
         ? [PieceType.wQueen, PieceType.wRook, PieceType.wBishop, PieceType.wKnight]
         : [PieceType.bQueen, PieceType.bRook, PieceType.bBishop, PieceType.bKnight];
 
@@ -357,7 +363,7 @@ class _MyHomePageState extends State<MyHomePage> {
     if(widget.engine.isCheckmate(widget.board)){
       showGameOverDialog(
         context, 
-        result: widget.board.getSideToMove() == Color.black ? "White Wins" : "Black Wins", 
+        result: widget.board.getSideToMove() == ChessColor.black ? "White Wins" : "Black Wins", 
         reason: "Checkmate",
         onNewGame: () {
           setState(() {

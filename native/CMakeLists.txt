@@ -36,12 +36,15 @@
     include_directories(include)
 
     # Source files
-    add_library(chess_core
+    add_library(chess_core STATIC
         src/board.cpp
         src/utils.cpp
         src/engine.cpp
         src/transposition.cpp
-        bridge/chess_bridge.cpp
+    )
+
+    set_target_properties(chess_core PROPERTIES
+        POSITION_INDEPENDENT_CODE ON
     )
 
     target_include_directories(chess_core PUBLIC src bridge)
@@ -74,6 +77,7 @@
     #Bridge test executable (NEW!)
     add_executable(
         bridge_test
+        bridge/chess_bridge.cpp
         bridge/chess_bridge_test.cpp
     )
 
@@ -109,16 +113,14 @@
     # ============================================================================
 
     # Build bridge as a shared library
-    add_library(chess_bridge SHARED src/main.cpp)
+    add_library(chess_bridge SHARED bridge/chess_bridge.cpp)
 
-    target_link_libraries(chess_bridge chess_core)
+    target_link_libraries(chess_bridge PRIVATE chess_core)
 
     # Set library output name (will create libchess_bridge.dylib on macOS, etc.)
     set_target_properties(chess_bridge PROPERTIES
         OUTPUT_NAME "chess_bridge"
         PREFIX "lib"
-        VERSION 1.0.0
-        SOVERSION 1
     )
 
     # On macOS, set the install name for the dylib

@@ -62,15 +62,15 @@ class Move {
   String toString() => toUCI();
 }
 
-enum Color{
+enum ChessColor{
   white(ffi_bindings.colorWhite),
   black(ffi_bindings.colorBlack),
   none(ffi_bindings.colorNone);
 
   final int value;
-  const Color(this.value);
+  const ChessColor(this.value);
 
-  static Color fromValue(int value){
+  static ChessColor fromValue(int value){
     return values.firstWhere((color) => color.value == value);
   }
 }
@@ -172,11 +172,11 @@ class ChessBoard{
   }
 
   /// Get side to move
-  Color getSideToMove() {
+  ChessColor getSideToMove() {
     _checkDisposed();
     final side = ffi_bindings.chessBoardGetSideToMove(_handle);
 
-    return Color.fromValue(side);
+    return ChessColor.fromValue(side);
   }
 
   /// Check if current side is in check
@@ -320,15 +320,15 @@ class ChessEngine {
 
   /// Get piece-square table score for a color. 
   /// Returns the total material + positional score
-  int getPstScore(Color color) {
+  int getPstScore(ChessColor color) {
     _checkDisposed();
     return ffi_bindings.chessBoardGetPstOfColor(_handle, color.value);
   }
 
   /// Get material advantage (positive = white is winning, negative = black)
   int getMaterialAdvantage() {
-    final whiteScore = getPstScore(Color.white);
-    final blackScore = getPstScore(Color.black);
+    final whiteScore = getPstScore(ChessColor.white);
+    final blackScore = getPstScore(ChessColor.black);
     return whiteScore - blackScore;
   }
 

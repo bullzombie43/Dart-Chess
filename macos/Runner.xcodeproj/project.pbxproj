@@ -426,6 +426,7 @@
 		};
 		D0701E652EE10CCE0073476E /* Run Script: Build Native Library */ = {
 			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
 			buildActionMask = 2147483647;
 			files = (
 			);
