@@ -1,11 +1,14 @@
 import 'package:chess_ui/game/chess_engine.dart';
+import 'package:chess_ui/game/game_controller.dart';
 import 'package:chess_ui/ui/board_background.dart';
 import 'package:chess_ui/ui/board_controls.dart';
 import 'package:chess_ui/ui/board_pieces.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/svg.dart';
 import 'package:window_manager/window_manager.dart';
+import 'package:provider/provider.dart';
 import 'package:flutter/material.dart' as material;
+
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -28,23 +31,30 @@ void main() async {
 
   ChessBoard board = ChessBoard();
   ChessEngine engine = ChessEngine();
+  GameController controller = GameController(board: board, engine: engine);
 
 
-  runApp(MyApp(board: board, engine: engine,));
+  runApp(
+    ChangeNotifierProvider(
+      create: (context) => controller,
+      child: MyApp(board: board,engine: engine, controller: controller,),
+    )
+  );
 }
 
 class MyApp extends StatelessWidget {
 
   final ChessBoard board;
   final ChessEngine engine;
+  final GameController controller;
+
 
   const MyApp({
     super.key,
     required this.board,
-    required this.engine
+    required this.engine,
+    required this.controller,
   });
-
-  
 
   // This widget is the root of your application.
   @override
@@ -59,7 +69,7 @@ class MyApp extends StatelessWidget {
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
         useMaterial3: true,
       ),
-      home: MyHomePage(title: 'Chess UI', board: board, engine: engine,),
+      home: MyHomePage(title: 'Chess UI', board: board, engine: engine, controller: controller,),
     );
   }
 }
@@ -69,27 +79,21 @@ class MyHomePage extends StatefulWidget {
   final ChessEngine engine;
   final BoardSize boardSize;
   final int orientation;
+  final GameController controller;
+  final String title;
+  bool engineMode;
 
-  const MyHomePage({
+
+  MyHomePage({
     super.key, 
     required this.title,
     required this.board,
     required this.engine,
+    required this.controller,
     this.boardSize = BoardSize.chess,
     this.orientation = 0,
+    this.engineMode = false
   });
-
-  // This widget is the home page of your application. It is stateful, meaning
-  // that it has a State object (defined below) that contains fields that affect
-  // how it looks.
-
-  // This class is the configuration for the state. It holds the values (in this
-  // case the title) provided by the parent (in this case the App widget) and
-  // used by the build method of the State. Fields in a Widget subclass are
-  // always marked "final".
-
-  final String title;
-
   @override
   State<MyHomePage> createState() => _MyHomePageState();
 }
@@ -99,9 +103,10 @@ class _MyHomePageState extends State<MyHomePage> {
   Map<int, Move> legalMoves = {}; //The legal moves for the currently selected piece
   int? selectedIndex;
   Map<int, HighlightType> highlights = {};
+  
 
   void fullPlayerMove(Move move) async{
-    widget.board.makeMove(move);
+    widget.controller.makeMove(move);
 
     // Update UI with player's move
     setState(() {
@@ -124,7 +129,7 @@ class _MyHomePageState extends State<MyHomePage> {
 
       if(engineMove == null) throw Exception("Random move was null");
 
-      widget.board.makeMove(engineMove);
+      widget.controller.makeMove(engineMove);
 
       await Future.delayed(const Duration(milliseconds: 100));
 
@@ -141,6 +146,8 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 
   Future<void> handleSquareTap(int index) async {
+    if(widget.engineMode) return;
+
     // Handle logic before calling setState
     if (selectedIndex == null) {
       final PieceType piece = widget.board.getPieceAt(index);
@@ -259,7 +266,6 @@ class _MyHomePageState extends State<MyHomePage> {
     final size = MediaQuery.of(context).size; // full window size
     final defaultPadding = size.width * 0.024; // 2.4% of width, 24 pixels at default window size
 
-
     return Scaffold(
       backgroundColor: const material.Color.fromARGB(255, 140, 208, 161),
       body:  Row(
@@ -281,6 +287,8 @@ class _MyHomePageState extends State<MyHomePage> {
                     orientation: widget.orientation, 
                     onTap: handleSquareTap, 
                     onDragEnd: handlePieceDragEnd,
+                    canDrag: !widget.engineMode,
+                    canTap: !widget.engineMode,
                     
                   )
                 ],
@@ -289,7 +297,18 @@ class _MyHomePageState extends State<MyHomePage> {
             Expanded(
               child: Padding(
                 padding: EdgeInsetsGeometry.fromLTRB(0, defaultPadding, defaultPadding, defaultPadding),
-                child: const BoardControls(totalTime: 80.0, timeIncrement: 0.0),
+                child: BoardControls(
+                  board: widget.board, 
+                  whiteTimer: widget.controller.whiteTimer, 
+                  blackTimer: widget.controller.blackTimer,
+                  blackPlayer: "My Engine",
+                  whitePlayer: "Human",
+                  onNewGame: () {
+                      setState(() {
+                        newGame();
+                      });
+                    },
+                )
               )
             )
           ],
@@ -361,26 +380,30 @@ class _MyHomePageState extends State<MyHomePage> {
   bool isCheckmateOrStalemate(){
     //Check for checkmate after each move
     if(widget.engine.isCheckmate(widget.board)){
+      widget.controller.stopWhiteTimer();
+      widget.controller.stopBlackTimer();
       showGameOverDialog(
         context, 
         result: widget.board.getSideToMove() == ChessColor.black ? "White Wins" : "Black Wins", 
         reason: "Checkmate",
         onNewGame: () {
           setState(() {
-            widget.board.setFen("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1");
+            newGame();
           });
         }
       );
 
       return true;
     } else if (widget.engine.isStalemate(widget.board)){
+        widget.controller.stopWhiteTimer();
+        widget.controller.stopBlackTimer();
         showGameOverDialog(
           context, 
           result: "Draw", 
           reason: "Stalemate",
           onNewGame: () {
             setState(() {
-              widget.board.setFen("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1");
+              newGame();
             });
           }
         );
@@ -388,6 +411,42 @@ class _MyHomePageState extends State<MyHomePage> {
     }
 
     return false;
+  }
+
+  void newGame(){
+    showDialog(
+      context: context, 
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Center(child: Text("New Game")),
+          actions: [
+            ElevatedButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+                setState(() {
+                  widget.board.setFen("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1");
+                  widget.controller.resetTimers();
+                  widget.engineMode = false;
+                });
+              }, 
+              child: const Text("Normal Game")
+            ),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+                setState(() {
+                  widget.board.setFen("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1");
+                  widget.controller.resetTimers();
+                  widget.engineMode = true;
+                });
+              },  
+              child: const Text("Engine Match")
+            ),
+          ]
+        );
+      }
+    );
   }
 
   void showGameOverDialog(
@@ -436,5 +495,7 @@ class _MyHomePageState extends State<MyHomePage> {
     );
   }
 }
+
+
 
 

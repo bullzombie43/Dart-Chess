@@ -25,7 +25,10 @@ class BoardPieces extends StatefulWidget{
 
   final double piecePadding;
 
-  const BoardPieces({
+  bool canTap;
+  bool canDrag;
+
+  BoardPieces({
     super.key,
     this.size = BoardSize.chess,
     this.orientation = 0,
@@ -35,6 +38,8 @@ class BoardPieces extends StatefulWidget{
     this.onDragCancelled,
     this.onDragEnd,
     this.piecePadding = 0.0,
+    this.canDrag = true,
+    this.canTap = true
   });
 
   @override
@@ -76,7 +81,7 @@ class _BoardPiecesState extends State<BoardPieces> {
       PieceWidget(
         assetPath: assets[widget.board.getPieceAt(index)]!,
         size: squareSize,
-        draggable: true,
+        draggable: widget.canDrag,
         onTap: () => widget.onTap != null ? widget.onTap!(index) : print("tapped"),
         onDragEnd: (offset) {
           double maxSize = squareSize * 8;
@@ -101,7 +106,7 @@ class _BoardPiecesState extends State<BoardPieces> {
       ) 
       
       : GestureDetector(
-          onTap: () => widget.onTap != null ? widget.onTap!(index) : print("tapped"),
+          onTap: () => widget.onTap != null && widget.canTap ? widget.onTap!(index) : print("tapped"),
           child: Container(
             width: squareSize,
             height: squareSize,

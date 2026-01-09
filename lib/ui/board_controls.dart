@@ -1,40 +1,25 @@
+import 'package:chess_ui/game/chess_engine.dart';
 import 'package:flutter/material.dart';
 import 'package:stop_watch_timer/stop_watch_timer.dart';
 
-class BoardControls extends StatefulWidget {
-  final double totalTime;
-  final double timeIncrement;
+class BoardControls extends StatelessWidget {
+  final StopWatchTimer whiteTimer;
+  final StopWatchTimer blackTimer;
+  final ChessBoard board;
+  final VoidCallback onNewGame;
+  final String blackPlayer;
+  final String whitePlayer;
   
 
-  const BoardControls({super.key, required this.totalTime, required this.timeIncrement});
-
-  @override
-  BoardControlsState createState() => BoardControlsState();
-}
-
-class BoardControlsState extends State<BoardControls> {
-
-  final _whiteTimer = StopWatchTimer(
-    mode: StopWatchMode.countDown,
-    presetMillisecond: StopWatchTimer.getMilliSecFromMinute(1), // millisecond => minute.
-  );
-
-  final _blackTimer = StopWatchTimer(
-    mode: StopWatchMode.countDown,
-    presetMillisecond: StopWatchTimer.getMilliSecFromMinute(1), // millisecond => minute.
-  );
-
-  @override
-  void initState() {
-    super.initState();
-  }
-
-  @override
-  void dispose() async {
-    super.dispose();
-    await _whiteTimer.dispose();  // Need to call dispose function.
-    await _blackTimer.dispose();
-  }
+  const BoardControls({
+    super.key, 
+    required this.whiteTimer, 
+    required this.blackTimer, 
+    required this.board, 
+    required this.onNewGame,
+    required this.blackPlayer,
+    required this.whitePlayer,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -49,8 +34,20 @@ class BoardControlsState extends State<BoardControls> {
                 mainAxisAlignment: MainAxisAlignment.center,
                 mainAxisSize: MainAxisSize.max,
                 children: [
-                  getTimeDisplay(_whiteTimer, defaultPadding, Colors.black),
-                  getTimeDisplay(_blackTimer, defaultPadding, Colors.white),
+                  getPlayerTitle(blackPlayer),
+                  const SizedBox(height: 20),
+                  getTimeDisplay(blackTimer, defaultPadding, Colors.black),
+                  const SizedBox(height: 100),
+                   ElevatedButton(
+                    onPressed: () {
+                      onNewGame();
+                    },
+                    child: const Text('New Game'),
+                  ),
+                  const SizedBox(height: 100,),
+                  getTimeDisplay(whiteTimer, defaultPadding, Colors.white),
+                  const SizedBox(height: 20),
+                  getPlayerTitle(whitePlayer),                 
                 ],
               ),
           );
@@ -98,6 +95,28 @@ class BoardControlsState extends State<BoardControls> {
           },
         ),
       );
+  } 
+
+  Widget getPlayerTitle(String player){
+    return Text(
+      player,
+      style: const TextStyle(
+        fontSize: 24.0, // Larger size
+        fontWeight: FontWeight.bold, // Bolder weight
+        color: Colors.black, // A nice title color
+        fontFamily: 'Roboto', // Or 'GoogleFonts.lato()', etc.
+        letterSpacing: 1.2, // Slightly spread out
+        shadows: [ // Optional glow/depth
+          Shadow(
+            blurRadius: 1.0,
+            color: Colors.black54,
+            offset: Offset(0.5, 0.5),
+          ),
+        ],
+      ),
+    );
   }
 }
+
+
 
