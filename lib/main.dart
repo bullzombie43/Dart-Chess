@@ -1,5 +1,7 @@
 import 'package:chess_ui/game/chess_engine.dart';
+import 'package:chess_ui/game/cutechess_manager.dart';
 import 'package:chess_ui/game/game_controller.dart';
+import 'package:chess_ui/game/pgn_watcher.dart';
 import 'package:chess_ui/ui/board_background.dart';
 import 'package:chess_ui/ui/board_controls.dart';
 import 'package:chess_ui/ui/board_pieces.dart';
@@ -81,7 +83,6 @@ class MyHomePage extends StatefulWidget {
   final int orientation;
   final GameController controller;
   final String title;
-  bool engineMode;
 
 
   MyHomePage({
@@ -92,7 +93,6 @@ class MyHomePage extends StatefulWidget {
     required this.controller,
     this.boardSize = BoardSize.chess,
     this.orientation = 0,
-    this.engineMode = false
   });
   @override
   State<MyHomePage> createState() => _MyHomePageState();
@@ -103,7 +103,10 @@ class _MyHomePageState extends State<MyHomePage> {
   Map<int, Move> legalMoves = {}; //The legal moves for the currently selected piece
   int? selectedIndex;
   Map<int, HighlightType> highlights = {};
-  
+  bool engineMode = false;
+  String? blackEngine;
+  String? whiteEngine;
+
 
   void fullPlayerMove(Move move) async{
     widget.controller.makeMove(move);
@@ -146,7 +149,7 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 
   Future<void> handleSquareTap(int index) async {
-    if(widget.engineMode) return;
+    if(engineMode) return;
 
     // Handle logic before calling setState
     if (selectedIndex == null) {
@@ -287,8 +290,8 @@ class _MyHomePageState extends State<MyHomePage> {
                     orientation: widget.orientation, 
                     onTap: handleSquareTap, 
                     onDragEnd: handlePieceDragEnd,
-                    canDrag: !widget.engineMode,
-                    canTap: !widget.engineMode,
+                    canDrag: !engineMode,
+                    canTap: !engineMode,
                     
                   )
                 ],
@@ -303,11 +306,14 @@ class _MyHomePageState extends State<MyHomePage> {
                   blackTimer: widget.controller.blackTimer,
                   blackPlayer: "My Engine",
                   whitePlayer: "Human",
+                  setBlackEngine: setBlackEngine,
+                  setWhiteEngine: setWhiteEngine,
                   onNewGame: () {
                       setState(() {
                         newGame();
                       });
-                    },
+                  },
+                  startEngineMatch: startEngineMatch,
                 )
               )
             )
@@ -427,7 +433,7 @@ class _MyHomePageState extends State<MyHomePage> {
                 setState(() {
                   widget.board.setFen("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1");
                   widget.controller.resetTimers();
-                  widget.engineMode = false;
+                  engineMode = false;
                 });
               }, 
               child: const Text("Normal Game")
@@ -438,7 +444,7 @@ class _MyHomePageState extends State<MyHomePage> {
                 setState(() {
                   widget.board.setFen("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1");
                   widget.controller.resetTimers();
-                  widget.engineMode = true;
+                  engineMode = true;
                 });
               },  
               child: const Text("Engine Match")
@@ -493,6 +499,61 @@ class _MyHomePageState extends State<MyHomePage> {
         );
       },
     );
+  }
+
+  void setWhiteEngine(String value){
+    whiteEngine = value;
+    print("White Engine: $whiteEngine");
+  }
+
+  void setBlackEngine(String value){
+    blackEngine = value;
+    print("Black Engine: $blackEngine");
+  }
+
+  void startEngineMatch() async{
+    print("Starting Engine Match");
+
+    String engine1Name = "MyEngine_v1";
+    String engine2Name = "MyEngine_v1";
+    int skillLevel = 1;
+
+    final pgnPath = '/Users/justin/VSCODE PROJECTS/chess_ui/logs/${engine1Name}_vs_sf$skillLevel.pgn';
+
+    CutechessManager manager = CutechessManager();
+    PGNWatcher watcher = PGNWatcher(pgnPath);
+
+    manager.events.listen((event) {
+      if (event is GameStartedEvent) {
+        print('Game ${event.gameNumber} started');
+      } else if (event is GameFinishedEvent) {
+        print('Game ${event.gameNumber}: ${event.result}');
+      } else if (event is MatchCompleteEvent) {
+        print('Match complete with exit code ${event.exitCode}');
+      }
+    });
+
+    // Listen to moves from watcher
+    watcher.moves.listen((gameMoves) {
+      print('\n📝 Game ${gameMoves.gameNumber} completed:');
+      print('   Moves: ${gameMoves.moves.join(" ")}');
+      print('   Result: ${gameMoves.result}');
+      print('   Total moves: ${gameMoves.moves.length}\n');
+    });
+
+    print("Starting March!");
+
+    await manager.startMatch(
+      engineName: engine1Name,
+      stockfishSkill: skillLevel,
+    );
+
+    watcher.start();
+
+    await manager.process?.exitCode;
+
+    watcher.stop();
+    await manager.stop();
   }
 }
 

@@ -1,14 +1,26 @@
 import 'package:chess_ui/game/chess_engine.dart';
+import 'package:chess_ui/ui/engine_dropdown_button.dart';
 import 'package:flutter/material.dart';
 import 'package:stop_watch_timer/stop_watch_timer.dart';
+
+const List<String> engineOptions = <String>['one', 'two', 'three'];
+
+void _emptyCallback(String value) {}
 
 class BoardControls extends StatelessWidget {
   final StopWatchTimer whiteTimer;
   final StopWatchTimer blackTimer;
   final ChessBoard board;
-  final VoidCallback onNewGame;
   final String blackPlayer;
   final String whitePlayer;
+  final bool engineMode;
+
+  final StringCallback setWhiteEngine;
+  final StringCallback setBlackEngine;
+
+  final VoidCallback onNewGame;
+  final VoidCallback startEngineMatch;
+
   
 
   const BoardControls({
@@ -17,8 +29,12 @@ class BoardControls extends StatelessWidget {
     required this.blackTimer, 
     required this.board, 
     required this.onNewGame,
+    required this.startEngineMatch,
     required this.blackPlayer,
     required this.whitePlayer,
+    this.setWhiteEngine = _emptyCallback,
+    this.setBlackEngine = _emptyCallback,
+    this.engineMode = true
   });
 
   @override
@@ -34,20 +50,31 @@ class BoardControls extends StatelessWidget {
                 mainAxisAlignment: MainAxisAlignment.center,
                 mainAxisSize: MainAxisSize.max,
                 children: [
-                  getPlayerTitle(blackPlayer),
+                  engineMode ? EngineDropdownButton(selectionCallback: setBlackEngine) : getPlayerTitle(blackPlayer),
                   const SizedBox(height: 20),
                   getTimeDisplay(blackTimer, defaultPadding, Colors.black),
                   const SizedBox(height: 100),
-                   ElevatedButton(
-                    onPressed: () {
-                      onNewGame();
-                    },
-                    child: const Text('New Game'),
-                  ),
+                  engineMode ? ElevatedButton(
+                    onPressed: startEngineMatch, 
+                    child: const Text(
+                      'Start Engine Match', 
+                      style: TextStyle(
+                        fontSize: 13.0
+                      ),
+                      )
+                  ) : ElevatedButton(
+                    onPressed: onNewGame,
+                    child: const Text(
+                      'New Game', 
+                      style: TextStyle(
+                        fontSize: 16.0
+                      ),
+                    ),
+                  ) ,
                   const SizedBox(height: 100,),
                   getTimeDisplay(whiteTimer, defaultPadding, Colors.white),
                   const SizedBox(height: 20),
-                  getPlayerTitle(whitePlayer),                 
+                  engineMode ? EngineDropdownButton(selectionCallback: setBlackEngine,) : getPlayerTitle(whitePlayer),              
                 ],
               ),
           );
@@ -116,6 +143,7 @@ class BoardControls extends StatelessWidget {
       ),
     );
   }
+
 }
 
 

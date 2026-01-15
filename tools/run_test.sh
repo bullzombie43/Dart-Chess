@@ -33,5 +33,4 @@ cutechess-cli \
   -repeat \
   -recover \
   -pgnout "./logs/${engine_name}_vs_sf${skill_level}.pgn" \
-  2>&1 | tee "./logs/${engine_name}_vs_sf${skill_level}.log"
-
+  2>&1 | tee "./logs/${engine_name}_vs_sf${skill_level}.log" 
