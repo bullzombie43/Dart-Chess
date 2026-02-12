@@ -130,23 +130,36 @@ class UciOrchestrator {
   Future<void> _waitForResponse(Process process, String expected) async {
     final completer = Completer<void>();
     late StreamSubscription subscription;
+    final buffer = StringBuffer();
     
     subscription = process.stdout
         .transform(utf8.decoder)
         .transform(const LineSplitter())
         .listen((line) {
-      if (line.trim() == expected) {
+      final trimmed = line.trim();
+      buffer.writeln(trimmed);
+      
+      // Check for expected response
+      if (trimmed == expected) {
         subscription.cancel();
         completer.complete();
       }
+      // Also check for error responses
+      else if (trimmed.toLowerCase().contains('error') || 
+               trimmed.toLowerCase().contains('unknown')) {
+        subscription.cancel();
+        completer.completeError(Exception('Engine error: $trimmed'));
+      }
     });
     
-    // Timeout after 5 seconds
+    // Timeout after 10 seconds (increased for slower engines)
     await completer.future.timeout(
-      const Duration(seconds: 5),
+      const Duration(seconds: 10),
       onTimeout: () {
         subscription.cancel();
-        throw TimeoutException('Engine did not respond with $expected');
+        throw TimeoutException(
+          'Engine did not respond with $expected. Output so far:\n${buffer.toString()}'
+        );
       },
     );
   }

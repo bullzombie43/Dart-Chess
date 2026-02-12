@@ -1,6 +1,7 @@
 import 'package:chess_ui/game/chess_engine.dart';
 import 'package:chess_ui/game/game_controller.dart';
 import 'package:chess_ui/game/match_manager.dart';
+import 'package:chess_ui/ui/log_replay_view.dart';
 import 'package:chess_ui/ui/single_match_view.dart';
 import 'package:chess_ui/ui/testing_view.dart';
 import 'package:flutter/material.dart';
@@ -92,6 +93,7 @@ class HomePage extends StatefulWidget {
 enum AppScreen {
   singleMatch,
   testing,
+  replayLogs,
 }
 
 class _HomePageState extends State<HomePage> {
@@ -120,6 +122,11 @@ class _HomePageState extends State<HomePage> {
           matchManager: widget.matchManager,
         );
         break;
+      case AppScreen.replayLogs:
+        currentView = LogReplayView(
+          controller: widget.controller,
+        );
+        break;
     }
 
     return Scaffold(
@@ -133,6 +140,8 @@ class _HomePageState extends State<HomePage> {
                 _switchScreen(AppScreen.singleMatch);
               } else if (value == 'testing') {
                 _switchScreen(AppScreen.testing);
+              } else if (value == 'replay_logs') {
+                _switchScreen(AppScreen.replayLogs);
               }
             },
             itemBuilder: (BuildContext context) => [
@@ -175,6 +184,30 @@ class _HomePageState extends State<HomePage> {
                     Text(
                       'Testing',
                       style: _currentScreen == AppScreen.testing
+                          ? TextStyle(
+                              fontWeight: FontWeight.bold,
+                              color: Theme.of(context).colorScheme.primary,
+                            )
+                          : null,
+                    ),
+                  ],
+                ),
+              ),
+              PopupMenuItem<String>(
+                value: 'replay_logs',
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.movie,
+                      size: 20,
+                      color: _currentScreen == AppScreen.replayLogs
+                          ? Theme.of(context).colorScheme.primary
+                          : null,
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      'Replay Logs',
+                      style: _currentScreen == AppScreen.replayLogs
                           ? TextStyle(
                               fontWeight: FontWeight.bold,
                               color: Theme.of(context).colorScheme.primary,

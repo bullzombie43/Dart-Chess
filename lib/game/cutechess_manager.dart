@@ -68,6 +68,100 @@ class CutechessManager {
       rethrow;
     }
   }
+
+  /// Start a generic engine-vs-engine match where both sides are configurable.
+  ///
+  /// This is used by the Flutter testing UI to run arbitrary engine pairs
+  /// (custom engines or Stockfish variants) against each other.
+  Future<void> startEngineVsEngineMatch({
+    required String whiteName,
+    required String whiteCommand,
+    Map<String, String>? whiteOptions,
+    required String blackName,
+    required String blackCommand,
+    Map<String, String>? blackOptions,
+    required String pgnPath,
+    required String logPath,
+    int rounds = 100,
+    String? projectRoot,
+  }) async {
+    final root = projectRoot ?? '/Users/justin/VSCODE PROJECTS/chess_ui';
+
+    try {
+      // Ensure log directory exists
+      await Directory(File(logPath).parent.path).create(recursive: true);
+
+      final args = <String>[
+        // White engine
+        '-engine',
+        'name=$whiteName',
+        'cmd=$whiteCommand',
+        'proto=uci',
+        ..._buildOptionArgs(whiteOptions),
+        // Black engine
+        '-engine',
+        'name=$blackName',
+        'cmd=$blackCommand',
+        'proto=uci',
+        ..._buildOptionArgs(blackOptions),
+        // Common settings
+        '-each',
+        'tc=40/60+0.6',
+        '-rounds',
+        '$rounds',
+        '-repeat',
+        '-recover',
+        '-pgnout',
+        pgnPath,
+      ];
+
+      print('Starting generic engine-vs-engine match...');
+      _process = await Process.start(
+        'cutechess-cli',
+        args,
+        workingDirectory: root,
+        runInShell: true,
+      );
+
+      // Open log file
+      _logFile = File(logPath).openWrite();
+
+      // Listen to stdout - parse AND log
+      _process!.stdout
+          .transform(utf8.decoder)
+          .transform(const LineSplitter())
+          .listen((line) {
+            _parseOutput(line);
+            _logFile?.writeln(line); // Write to log
+          });
+      
+      // Listen to stderr - log only
+      _process!.stderr
+          .transform(utf8.decoder)
+          .transform(const LineSplitter())
+          .listen((line) {
+            print('stderr: $line');
+            _logFile?.writeln('STDERR: $line'); // Write to log
+            if (line.toLowerCase().contains('error')) {
+              _eventController.add(BuildErrorEvent(line));
+            }
+          });
+      
+      // Listen for process exit
+      _process!.exitCode.then((code) {
+        _eventController.add(MatchCompleteEvent(code));
+        _logFile?.close();
+        _logFile = null;
+        _process = null;
+      });
+    } catch (e) {
+      _eventController.add(BuildErrorEvent('Failed to start match: $e'));
+      _logFile?.close();
+      _logFile = null;
+      _process = null;
+      rethrow;
+    }
+  }
   
   void _parseOutput(String line) {
     print('cutechess: $line');
@@ -155,7 +249,6 @@ class CutechessManager {
     
     // Step 4: Start cutechess-cli
     final pgnPath = '$logsDir/${engineName}_vs_sf$skillLevel.pgn';
-    final logPath = '$logsDir/${engineName}_vs_sf$skillLevel.log';
     
     print('Starting match...');
     
@@ -185,6 +278,19 @@ class CutechessManager {
     );
     
     return process;
+  }
+
+  /// Build cutechess option arguments from a map of UCI options.
+  ///
+  /// For example: {'Skill Level': '1'} becomes ['option.Skill Level=1'].
+  List<String> _buildOptionArgs(Map<String, String>? options) {
+    if (options == null || options.isEmpty) return [];
+    
+    final args = <String>[];
+    options.forEach((key, value) {
+      args.add('option.$key=$value');
+    });
+    return args;
   }
 }
 
@@ -219,7 +325,6 @@ class MatchCompleteEvent extends GameEvent {
 
 void main() async{
   String engine1Name = "MyEngine_v1";
-  String engine2Name = "MyEngine_v1";
   int skillLevel = 1;
 
   final pgnPath = '/Users/justin/VSCODE PROJECTS/chess_ui/native/logs/${engine1Name}_vs_sf$skillLevel.pgn';

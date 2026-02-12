@@ -1,5 +1,7 @@
 import 'dart:async';
+import 'dart:io';
 import 'package:chess_ui/game/cutechess_manager.dart';
+import 'package:chess_ui/game/engine_path_resolver.dart';
 import 'package:chess_ui/game/game_controller.dart';
 import 'package:chess_ui/game/game_mode.dart';
 import 'package:chess_ui/game/move_parser.dart';
@@ -49,11 +51,14 @@ class MatchManager {
   CutechessManager? _cutechessManager;
   PGNWatcher? _pgnWatcher;
   PgnReplayer? _pgnReplayer;
+  EnginePathResolver? _pathResolver;
   
   bool _isActive = false;
   Duration _replayDelay = const Duration(milliseconds: 500);
   
-  MatchManager(this.controller);
+  MatchManager(this.controller, {String? projectRoot}) {
+    _pathResolver = EnginePathResolver(projectRoot: projectRoot);
+  }
   
   /// Start a match with specified mode
   Future<void> startMatch({
@@ -91,6 +96,7 @@ class MatchManager {
       } else {
         await _startTestingMatch(
           engine1: engine1,
+          engine2: engine2,
           stockfishSkill: stockfishSkill ?? 1,
           rounds: rounds ?? 100,
           projectRoot: projectRoot,
@@ -115,6 +121,22 @@ class MatchManager {
     Map<String, String>? engine1Options,
     Map<String, String>? engine2Options,
   }) async {
+    // Resolve engine paths if they're names
+    final resolvedPath1 = _pathResolver?.resolveEnginePath(engine1Path) ?? engine1Path;
+    final resolvedPath2 = _pathResolver?.resolveEnginePath(engine2Path) ?? engine2Path;
+    
+    // Validate engine paths
+    if (!(_pathResolver?.isEngineValid(resolvedPath1) ?? true)) {
+      throw Exception('Engine 1 path is invalid or not executable: $resolvedPath1');
+    }
+    if (!(_pathResolver?.isEngineValid(resolvedPath2) ?? true)) {
+      throw Exception('Engine 2 path is invalid or not executable: $resolvedPath2');
+    }
+    
+    // Get engine options if not provided
+    final options1 = engine1Options ?? _pathResolver?.getEngineOptions(engine1Path) ?? {};
+    final options2 = engine2Options ?? _pathResolver?.getEngineOptions(engine2Path) ?? {};
+    
     _uciOrchestrator = UciOrchestrator();
     
     // Listen to UCI events
@@ -146,22 +168,47 @@ class MatchManager {
     });
     
     await _uciOrchestrator!.startMatch(
-      engine1Path: engine1Path,
-      engine2Path: engine2Path,
-      engine1Options: engine1Options,
-      engine2Options: engine2Options,
+      engine1Path: resolvedPath1,
+      engine2Path: resolvedPath2,
+      engine1Options: options1,
+      engine2Options: options2,
     );
   }
   
   /// Start testing mode match (cutechess + PGN replay)
   Future<void> _startTestingMatch({
     required String engine1,
+    required String engine2,
     required int stockfishSkill,
     required int rounds,
     String? projectRoot,
   }) async {
     _cutechessManager = CutechessManager();
-    final pgnPath = '${projectRoot ?? '/Users/justin/VSCODE PROJECTS/chess_ui'}/logs/${engine1}_vs_sf$stockfishSkill.pgn';
+    
+    // Resolve engine paths and options for both sides
+    final resolver = _pathResolver ?? EnginePathResolver(projectRoot: projectRoot);
+    final resolvedPath1 = resolver.resolveEnginePath(engine1);
+    final resolvedPath2 = resolver.resolveEnginePath(engine2);
+
+    if (!resolver.isEngineValid(resolvedPath1)) {
+      throw Exception('Engine 1 path is invalid or not executable: $resolvedPath1');
+    }
+    if (!resolver.isEngineValid(resolvedPath2)) {
+      throw Exception('Engine 2 path is invalid or not executable: $resolvedPath2');
+    }
+
+    final engine1Options = resolver.getEngineOptions(engine1);
+    final engine2Options = resolver.getEngineOptions(engine2);
+
+    // Prepare unique PGN/log file paths per test run
+    final root = projectRoot ?? resolver.projectRoot;
+    final logsDir = '$root/logs';
+    await Directory(logsDir).create(recursive: true);
+
+    final baseName = _buildLogBaseName(engine1, engine2);
+    final pgnPath = '$logsDir/$baseName.pgn';
+    final logPath = '$logsDir/$baseName.log';
+
     _pgnWatcher = PGNWatcher(pgnPath);
     _pgnReplayer = PgnReplayer(controller);
     _pgnReplayer!.setMoveDelay(_replayDelay);
@@ -192,11 +239,18 @@ class MatchManager {
       _pgnReplayer!.replayGame(gameMoves.moves);
     });
     
-    // Start cutechess match
-    await _cutechessManager!.startMatch(
-      engineName: engine1,
-      stockfishSkill: stockfishSkill,
-      projectRoot: projectRoot,
+    // Start cutechess match with both selected engines
+    await _cutechessManager!.startEngineVsEngineMatch(
+      whiteName: engine1,
+      whiteCommand: resolvedPath1!,
+      whiteOptions: engine1Options,
+      blackName: engine2,
+      blackCommand: resolvedPath2!,
+      blackOptions: engine2Options,
+      pgnPath: pgnPath,
+      logPath: logPath,
+      rounds: rounds,
+      projectRoot: root,
     );
     
     // Start PGN watcher
@@ -269,5 +323,22 @@ class MatchManager {
   void dispose() {
     stopMatch();
     _eventController.close();
+  }
+
+  /// Build a safe, unique base name for PGN/log files based on engine names.
+  String _buildLogBaseName(String engine1, String engine2) {
+    String sanitize(String name) {
+      final replaced = name.replaceAll(RegExp(r'[^a-zA-Z0-9]+'), '_');
+      return replaced.replaceAll(RegExp(r'^_+|_+$'), '');
+    }
+
+    final safe1 = sanitize(engine1);
+    final safe2 = sanitize(engine2);
+    final timestamp = DateTime.now()
+        .toIso8601String()
+        .replaceAll(':', '-')
+        .replaceAll('.', '-');
+
+    return '${safe1}_vs_${safe2}_$timestamp';
   }
 }
