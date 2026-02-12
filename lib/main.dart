@@ -1,20 +1,14 @@
 import 'package:chess_ui/game/chess_engine.dart';
-import 'package:chess_ui/game/cutechess_manager.dart';
 import 'package:chess_ui/game/game_controller.dart';
-import 'package:chess_ui/game/pgn_watcher.dart';
-import 'package:chess_ui/ui/board_background.dart';
-import 'package:chess_ui/ui/board_controls.dart';
-import 'package:chess_ui/ui/board_pieces.dart';
+import 'package:chess_ui/game/match_manager.dart';
+import 'package:chess_ui/ui/single_match_view.dart';
+import 'package:chess_ui/ui/testing_view.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_svg/svg.dart';
-import 'package:window_manager/window_manager.dart';
 import 'package:provider/provider.dart';
-import 'package:flutter/material.dart' as material;
-
+import 'package:window_manager/window_manager.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  // Must add this line.
   await windowManager.ensureInitialized();
 
   WindowOptions windowOptions = const WindowOptions(
@@ -28,535 +22,173 @@ void main() async {
   windowManager.waitUntilReadyToShow(windowOptions, () async {
     await windowManager.show();
     await windowManager.focus();
-    await windowManager.setAspectRatio(10.0/8.0);
+    await windowManager.setAspectRatio(10.0 / 8.0);
   });
 
-  ChessBoard board = ChessBoard();
-  ChessEngine engine = ChessEngine();
-  GameController controller = GameController(board: board, engine: engine);
-
+  // Initialize game components
+  final board = ChessBoard();
+  final engine = ChessEngine();
+  final controller = GameController(board: board, engine: engine);
+  final matchManager = MatchManager(controller);
 
   runApp(
     ChangeNotifierProvider(
       create: (context) => controller,
-      child: MyApp(board: board,engine: engine, controller: controller,),
-    )
+      child: MyApp(
+        controller: controller,
+        engine: engine,
+        matchManager: matchManager,
+      ),
+    ),
   );
 }
 
 class MyApp extends StatelessWidget {
-
-  final ChessBoard board;
-  final ChessEngine engine;
   final GameController controller;
-
+  final ChessEngine engine;
+  final MatchManager matchManager;
 
   const MyApp({
     super.key,
-    required this.board,
-    required this.engine,
     required this.controller,
+    required this.engine,
+    required this.matchManager,
   });
 
-  // This widget is the root of your application.
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Flutter Demo',
+      title: 'Chess UI',
       theme: ThemeData(
-        // This is the theme of your application.
-        //
-        // This works for code too, not just values: Most code changes can be
-        // tested with just a hot reload.
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
         useMaterial3: true,
       ),
-      home: MyHomePage(title: 'Chess UI', board: board, engine: engine, controller: controller,),
+      home: HomePage(
+        controller: controller,
+        engine: engine,
+        matchManager: matchManager,
+      ),
     );
   }
 }
 
-class MyHomePage extends StatefulWidget {
-  final ChessBoard board;
-  final ChessEngine engine;
-  final BoardSize boardSize;
-  final int orientation;
+/// Home page that routes to appropriate view based on game mode
+class HomePage extends StatefulWidget {
   final GameController controller;
-  final String title;
+  final ChessEngine engine;
+  final MatchManager matchManager;
 
-
-  MyHomePage({
-    super.key, 
-    required this.title,
-    required this.board,
-    required this.engine,
+  const HomePage({
+    super.key,
     required this.controller,
-    this.boardSize = BoardSize.chess,
-    this.orientation = 0,
+    required this.engine,
+    required this.matchManager,
   });
+
   @override
-  State<MyHomePage> createState() => _MyHomePageState();
+  State<HomePage> createState() => _HomePageState();
 }
 
-class _MyHomePageState extends State<MyHomePage> {
-  Map<int, Marker> markers = {};
-  Map<int, Move> legalMoves = {}; //The legal moves for the currently selected piece
-  int? selectedIndex;
-  Map<int, HighlightType> highlights = {};
-  bool engineMode = false;
-  String? blackEngine;
-  String? whiteEngine;
+enum AppScreen {
+  singleMatch,
+  testing,
+}
 
+class _HomePageState extends State<HomePage> {
+  AppScreen _currentScreen = AppScreen.singleMatch;
 
-  void fullPlayerMove(Move move) async{
-    widget.controller.makeMove(move);
-
-    // Update UI with player's move
+  void _switchScreen(AppScreen screen) {
     setState(() {
-      selectedIndex = null;
-      markers.clear();
-      legalMoves.clear();
-      highlights = _generateHighlights(board: widget.board, engine: widget.engine);
-    });
-
-    // ✅ Give Flutter time to paint the player's move
-    await Future.delayed(const Duration(milliseconds: 100));
-
-    //Check for checkmate after each move
-    if(!isCheckmateOrStalemate()) {
-      //If its not game over have the engine make a move
-      Move? engineMove = widget.engine.getBestMove(widget.board);
-
-      print(engineMove!.fromSquare);
-      print(engineMove!.fromSquare);
-
-      if(engineMove == null) throw Exception("Random move was null");
-
-      widget.controller.makeMove(engineMove);
-
-      await Future.delayed(const Duration(milliseconds: 100));
-
-      isCheckmateOrStalemate();
-
-      setState(() {
-        selectedIndex = null;
-        markers.clear();
-        legalMoves.clear();
-        highlights = _generateHighlights(board: widget.board, engine: widget.engine);
-      });
-
-    }
-  }
-
-  Future<void> handleSquareTap(int index) async {
-    if(engineMode) return;
-
-    // Handle logic before calling setState
-    if (selectedIndex == null) {
-      final PieceType piece = widget.board.getPieceAt(index);
-
-      //Update legal moves first
-      legalMoves.clear();
-      List<Move> allPossibleMoves = widget.engine.generateLegalMoves(widget.board);
-
-      for(Move move in allPossibleMoves){
-        if(move.fromSquare == index){
-          legalMoves[move.toSquare] = move;
-        }
-      }
-
-      if (piece != PieceType.none) {
-        // Just compute markers (no need for async here)
-        final newMarkers = _generateMarkers(
-          target: index,
-          board: widget.board,
-          engine: widget.engine,
-          color: piece.isWhite ? ChessColor.white : ChessColor.black,
-          legalMoves: legalMoves
-        );
-
-        setState(() {
-          markers = newMarkers;
-          selectedIndex = index;
-          highlights = _generateHighlights(board: widget.board, engine: widget.engine);
-        });
-      }
-    } else {
-      // Piece already selected
-      if (markers.containsKey(index)) { //index is the ending square which is also the int value in our map
-        print("Index Tapped: $index");
-        // Legal move tapped → perform move
-        Move move = legalMoves[index]!;
-
-        // Check promotion before updating UI
-        if (isPromotionAttempt(PieceType.fromValue(move.piece), move.fromSquare, move.toSquare)) {
-          PieceType? choice = await showPromotionDialog(context, PieceType.fromValue(move.piece).isWhite ? ChessColor.white : ChessColor.black);
-          if (choice == null) return; // user cancelled
-          print("Entered");
-          fullPlayerMove(
-            Move(
-              piece: move.piece,
-              fromSquare: move.fromSquare,
-              toSquare: move.toSquare,
-              capturedPiece: move.capturedPiece,
-              promotedPiece: choice.value,
-              isCastling: false,
-              isEnPassant: false
-            )
-          );
-        } else {
-          fullPlayerMove(move);
-        }
-      } else if (widget.board.getPieceAt(index) != PieceType.none && index != selectedIndex) {
-          //Regenerate legal moves for the new square
-          legalMoves.clear();
-          List<Move> allPossibleMoves = widget.engine.generateLegalMoves(widget.board);
-
-          for(Move move in allPossibleMoves){
-            if(move.fromSquare == index){
-              legalMoves[move.toSquare] = move;
-            }
-          }
-
-          final newMarkers = _generateMarkers(
-            target: index,
-            board: widget.board,
-            engine: widget.engine,
-            color: widget.board.getPieceAt(index).isWhite ? ChessColor.white : ChessColor.black,
-            legalMoves: legalMoves
-          );
-
-          setState(() {
-            selectedIndex = index;
-            markers = newMarkers;
-            highlights = _generateHighlights(board: widget.board, engine: widget.engine);
-          });
-      } else {
-        // Tapped empty/illegal square → deselect
-        setState(() {
-          selectedIndex = null;
-          markers.clear();
-          legalMoves.clear();
-          highlights = _generateHighlights(board: widget.board, engine: widget.engine);
-        });
-      }
-    }
-  }
-
-  void handlePieceDragEnd(int startIndex, int endIndex){
-    setState(() {
-      Move? move;
-      List<Move> allPossibleMoves = widget.engine.generateLegalMoves(widget.board);
-
-      for(Move m in allPossibleMoves){
-        if(m.fromSquare == startIndex && m.toSquare == endIndex){
-          move = m;
-        }
-      }
-
-      if(move != null){
-        fullPlayerMove(move);
-      }
-
-      highlights.clear();
-
-      highlights = _generateHighlights(board: widget.board, engine: widget.engine);
+      _currentScreen = screen;
     });
   }
 
   @override
   Widget build(BuildContext context) {
-    final size = MediaQuery.of(context).size; // full window size
-    final defaultPadding = size.width * 0.024; // 2.4% of width, 24 pixels at default window size
+    // Route to appropriate view based on screen
+    Widget currentView;
+    switch (_currentScreen) {
+      case AppScreen.singleMatch:
+        currentView = SingleMatchView(
+          controller: widget.controller,
+          engine: widget.engine,
+        );
+        break;
+      case AppScreen.testing:
+        currentView = TestingView(
+          controller: widget.controller,
+          matchManager: widget.matchManager,
+        );
+        break;
+    }
 
     return Scaffold(
-      backgroundColor: const material.Color.fromARGB(255, 140, 208, 161),
-      body:  Row(
-        children: [
-          Padding(
-            padding: EdgeInsets.all(defaultPadding),
-            child: 
-              Stack(
-                children: [
-                  Boardbackground(
-                    markers: markers, 
-                    boardSize: widget.boardSize, 
-                    orientation: widget.orientation,
-                    highlights: highlights,
-                  ),
-                  BoardPieces(
-                    board: widget.board,
-                    size: widget.boardSize,
-                    orientation: widget.orientation, 
-                    onTap: handleSquareTap, 
-                    onDragEnd: handlePieceDragEnd,
-                    canDrag: !engineMode,
-                    canTap: !engineMode,
-                    
-                  )
-                ],
-              ),
-            ),
-            Expanded(
-              child: Padding(
-                padding: EdgeInsetsGeometry.fromLTRB(0, defaultPadding, defaultPadding, defaultPadding),
-                child: BoardControls(
-                  board: widget.board, 
-                  whiteTimer: widget.controller.whiteTimer, 
-                  blackTimer: widget.controller.blackTimer,
-                  blackPlayer: "My Engine",
-                  whitePlayer: "Human",
-                  setBlackEngine: setBlackEngine,
-                  setWhiteEngine: setWhiteEngine,
-                  onNewGame: () {
-                      setState(() {
-                        newGame();
-                      });
-                  },
-                  startEngineMatch: startEngineMatch,
-                )
-              )
-            )
-          ],
-        )
-      );
-  }
-
-  Map<int, Marker> _generateMarkers({required int target, required ChessBoard board, required ChessEngine engine, required ChessColor color, required Map<int, Move> legalMoves}){
-    Map<int, Marker> markers = {};
-
-    if(board.getSideToMove() != color){
-      return markers;
-    }
-    
-    for(final Move move in legalMoves.values){
-      HighlightType highlightType = HighlightType.selected;
-      markers[move.toSquare] = PieceType.fromValue(move.capturedPiece) != PieceType.none ? Marker.piece(highlightType) : Marker.empty(highlightType);
-    }
-
-    return markers;
-  }
-
-  Map<int, HighlightType> _generateHighlights({required ChessBoard board, required ChessEngine engine}){
-    HighlightType selectionColor = HighlightType.selected;
-
-    Map<int, HighlightType> highlights = {};
-
-    return highlights;
-  }
-
-  Future<PieceType?> showPromotionDialog(BuildContext context, ChessColor color) async {
-    List<PieceType> promotionChoices = color == ChessColor.white
-        ? [PieceType.wQueen, PieceType.wRook, PieceType.wBishop, PieceType.wKnight]
-        : [PieceType.bQueen, PieceType.bRook, PieceType.bBishop, PieceType.bKnight];
-
-    return await showDialog<PieceType>(
-      context: context,
-      barrierDismissible: true,
-      builder: (context) {
-        return AlertDialog(
-          title: const Text('Promote to:'),
-          content: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-            children: [
-              for (PieceType piece in promotionChoices)
-                GestureDetector(
-                  onTap: () => Navigator.pop(context, piece),
-                  child: SvgPicture.asset(
-                    'assets/pieces/${piece.asset}', // e.g. white_queen.png
-                    height: 48,
-                    width: 48,
-                  ),
+      appBar: AppBar(
+        title: const Text('Chess UI'),
+        actions: [
+          PopupMenuButton<String>(
+            icon: const Icon(Icons.settings),
+            onSelected: (value) {
+              if (value == 'single_match') {
+                _switchScreen(AppScreen.singleMatch);
+              } else if (value == 'testing') {
+                _switchScreen(AppScreen.testing);
+              }
+            },
+            itemBuilder: (BuildContext context) => [
+              PopupMenuItem<String>(
+                value: 'single_match',
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.sports_esports,
+                      size: 20,
+                      color: _currentScreen == AppScreen.singleMatch 
+                          ? Theme.of(context).colorScheme.primary 
+                          : null,
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      'Single Match',
+                      style: _currentScreen == AppScreen.singleMatch
+                          ? TextStyle(
+                              fontWeight: FontWeight.bold,
+                              color: Theme.of(context).colorScheme.primary,
+                            )
+                          : null,
+                    ),
+                  ],
                 ),
-            ],
-          ),
-        );
-      },
-    );
-  }
-
-  bool isPromotionAttempt(PieceType piece, int from, int to) {
-    // White promotion rank = rank 8 → index 56–63
-    // Black promotion rank = rank 1 → index 0–7
-    int rankTo = rankOf(to);
-    return (piece == PieceType.wPawn && rankTo == 7) ||
-          (piece == PieceType.bPawn && rankTo == 0);
-  }
-
-  bool isCheckmateOrStalemate(){
-    //Check for checkmate after each move
-    if(widget.engine.isCheckmate(widget.board)){
-      widget.controller.stopWhiteTimer();
-      widget.controller.stopBlackTimer();
-      showGameOverDialog(
-        context, 
-        result: widget.board.getSideToMove() == ChessColor.black ? "White Wins" : "Black Wins", 
-        reason: "Checkmate",
-        onNewGame: () {
-          setState(() {
-            newGame();
-          });
-        }
-      );
-
-      return true;
-    } else if (widget.engine.isStalemate(widget.board)){
-        widget.controller.stopWhiteTimer();
-        widget.controller.stopBlackTimer();
-        showGameOverDialog(
-          context, 
-          result: "Draw", 
-          reason: "Stalemate",
-          onNewGame: () {
-            setState(() {
-              newGame();
-            });
-          }
-        );
-        return true;
-    }
-
-    return false;
-  }
-
-  void newGame(){
-    showDialog(
-      context: context, 
-      barrierDismissible: false,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: const Center(child: Text("New Game")),
-          actions: [
-            ElevatedButton(
-              onPressed: () {
-                Navigator.of(context).pop();
-                setState(() {
-                  widget.board.setFen("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1");
-                  widget.controller.resetTimers();
-                  engineMode = false;
-                });
-              }, 
-              child: const Text("Normal Game")
-            ),
-            ElevatedButton(
-              onPressed: () {
-                Navigator.of(context).pop();
-                setState(() {
-                  widget.board.setFen("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1");
-                  widget.controller.resetTimers();
-                  engineMode = true;
-                });
-              },  
-              child: const Text("Engine Match")
-            ),
-          ]
-        );
-      }
-    );
-  }
-
-  void showGameOverDialog(
-    BuildContext context, {
-    required String result,  // "White wins", "Black wins", or "Draw"
-    String? reason,          // "Checkmate", "Stalemate", etc.
-    required VoidCallback onNewGame,
-  }) {
-    final isDraw = result == 'Draw';
-    
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: Row(
-            children: [
-              Icon(
-                isDraw ? Icons.handshake : Icons.emoji_events,
-                color: isDraw ? Colors.blue : Colors.amber,
-                size: 32,
               ),
-              const SizedBox(width: 12),
-              Text(reason ?? 'Game Over'),
+              PopupMenuItem<String>(
+                value: 'testing',
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.science,
+                      size: 20,
+                      color: _currentScreen == AppScreen.testing 
+                          ? Theme.of(context).colorScheme.primary 
+                          : null,
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      'Testing',
+                      style: _currentScreen == AppScreen.testing
+                          ? TextStyle(
+                              fontWeight: FontWeight.bold,
+                              color: Theme.of(context).colorScheme.primary,
+                            )
+                          : null,
+                    ),
+                  ],
+                ),
+              ),
             ],
           ),
-          content: Text(
-            result,
-            style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: const Text('View Board'),
-            ),
-            ElevatedButton(
-              onPressed: () {
-                Navigator.of(context).pop();
-                onNewGame();
-              },
-              child: const Text('New Game'),
-            ),
-          ],
-        );
-      },
+        ],
+      ),
+      body: currentView,
     );
-  }
-
-  void setWhiteEngine(String value){
-    whiteEngine = value;
-    print("White Engine: $whiteEngine");
-  }
-
-  void setBlackEngine(String value){
-    blackEngine = value;
-    print("Black Engine: $blackEngine");
-  }
-
-  void startEngineMatch() async{
-    print("Starting Engine Match");
-
-    String engine1Name = "MyEngine_v1";
-    String engine2Name = "MyEngine_v1";
-    int skillLevel = 1;
-
-    final pgnPath = '/Users/justin/VSCODE PROJECTS/chess_ui/logs/${engine1Name}_vs_sf$skillLevel.pgn';
-
-    CutechessManager manager = CutechessManager();
-    PGNWatcher watcher = PGNWatcher(pgnPath);
-
-    manager.events.listen((event) {
-      if (event is GameStartedEvent) {
-        print('Game ${event.gameNumber} started');
-      } else if (event is GameFinishedEvent) {
-        print('Game ${event.gameNumber}: ${event.result}');
-      } else if (event is MatchCompleteEvent) {
-        print('Match complete with exit code ${event.exitCode}');
-      }
-    });
-
-    // Listen to moves from watcher
-    watcher.moves.listen((gameMoves) {
-      print('\n📝 Game ${gameMoves.gameNumber} completed:');
-      print('   Moves: ${gameMoves.moves.join(" ")}');
-      print('   Result: ${gameMoves.result}');
-      print('   Total moves: ${gameMoves.moves.length}\n');
-    });
-
-    print("Starting March!");
-
-    await manager.startMatch(
-      engineName: engine1Name,
-      stockfishSkill: skillLevel,
-    );
-
-    watcher.start();
-
-    await manager.process?.exitCode;
-
-    watcher.stop();
-    await manager.stop();
   }
 }
-
-
-
-
