@@ -2,6 +2,7 @@ import 'package:chess_ui/game/chess_engine.dart';
 import 'package:chess_ui/game/game_controller.dart';
 import 'package:chess_ui/game/match_manager.dart';
 import 'package:chess_ui/ui/log_replay_view.dart';
+import 'package:chess_ui/ui/theme/app_theme.dart';
 import 'package:chess_ui/ui/single_match_view.dart';
 import 'package:chess_ui/ui/testing_view.dart';
 import 'package:flutter/material.dart';
@@ -45,7 +46,7 @@ void main() async {
   );
 }
 
-class MyApp extends StatelessWidget {
+class MyApp extends StatefulWidget {
   final GameController controller;
   final ChessEngine engine;
   final MatchManager matchManager;
@@ -58,17 +59,31 @@ class MyApp extends StatelessWidget {
   });
 
   @override
+  State<MyApp> createState() => _MyAppState();
+}
+
+class _MyAppState extends State<MyApp> {
+  ThemeMode _themeMode = ThemeMode.system;
+
+  void _setThemeMode(ThemeMode mode) {
+    setState(() {
+      _themeMode = mode;
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'Chess UI',
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
-        useMaterial3: true,
-      ),
+      theme: AppTheme.light,
+      darkTheme: AppTheme.dark,
+      themeMode: _themeMode,
       home: HomePage(
-        controller: controller,
-        engine: engine,
-        matchManager: matchManager,
+        controller: widget.controller,
+        engine: widget.engine,
+        matchManager: widget.matchManager,
+        themeMode: _themeMode,
+        onThemeModeChanged: _setThemeMode,
       ),
     );
   }
@@ -79,12 +94,16 @@ class HomePage extends StatefulWidget {
   final GameController controller;
   final ChessEngine engine;
   final MatchManager matchManager;
+  final ThemeMode themeMode;
+  final ValueChanged<ThemeMode> onThemeModeChanged;
 
   const HomePage({
     super.key,
     required this.controller,
     required this.engine,
     required this.matchManager,
+    required this.themeMode,
+    required this.onThemeModeChanged,
   });
 
   @override
@@ -130,12 +149,32 @@ class _HomePageState extends State<HomePage> {
         break;
     }
 
+    final colorScheme = Theme.of(context).colorScheme;
     return Scaffold(
       appBar: AppBar(
         title: const Text('Chess UI'),
         actions: [
+          IconButton(
+            icon: Icon(
+              widget.themeMode == ThemeMode.dark
+                  ? Icons.dark_mode
+                  : widget.themeMode == ThemeMode.light
+                      ? Icons.light_mode
+                      : Icons.brightness_auto,
+              color: colorScheme.onSurface,
+            ),
+            tooltip: 'Toggle theme',
+            onPressed: () {
+              final next = widget.themeMode == ThemeMode.system
+                  ? ThemeMode.light
+                  : widget.themeMode == ThemeMode.light
+                      ? ThemeMode.dark
+                      : ThemeMode.system;
+              widget.onThemeModeChanged(next);
+            },
+          ),
           PopupMenuButton<String>(
-            icon: const Icon(Icons.settings),
+            icon: Icon(Icons.menu, color: colorScheme.onSurface),
             onSelected: (value) {
               if (value == 'single_match') {
                 _switchScreen(AppScreen.singleMatch);

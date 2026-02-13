@@ -89,7 +89,6 @@ class _TestingViewState extends State<TestingView> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color.fromARGB(255, 140, 208, 161),
       body: Row(
         children: [
           // Chess board (left side) - Expanded so it shares space and shrinks with window
@@ -126,23 +125,29 @@ class _TestingViewState extends State<TestingView> {
 
   /// Build the testing control panel
   Widget _buildTestingPanel() {
+    final theme = Theme.of(context);
+    final textTheme = theme.textTheme;
     return Column(
       children: [
-        // Engine Selection Section
         Card(
           child: Padding(
             padding: const EdgeInsets.all(16.0),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
+                Text(
                   'Engine Selection',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  style: textTheme.titleLarge?.copyWith(
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
                 const SizedBox(height: 16),
                 Row(
                   children: [
-                    const Text('White Engine:', style: TextStyle(fontSize: 14)),
+                    Text(
+                      'White Engine:',
+                      style: textTheme.bodyMedium,
+                    ),
                     const SizedBox(width: 8),
                     Expanded(
                       child: IgnorePointer(
@@ -167,7 +172,10 @@ class _TestingViewState extends State<TestingView> {
                 const SizedBox(height: 12),
                 Row(
                   children: [
-                    const Text('Black Engine:', style: TextStyle(fontSize: 14)),
+                    Text(
+                      'Black Engine:',
+                      style: textTheme.bodyMedium,
+                    ),
                     const SizedBox(width: 8),
                     Expanded(
                       child: IgnorePointer(
@@ -256,9 +264,11 @@ class _TestingViewState extends State<TestingView> {
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
+                  Text(
                     'Statistics',
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                    style: textTheme.titleLarge?.copyWith(
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                   const SizedBox(height: 16),
                   _buildStatRow('Status', _isTestActive ? 'Active' : 'Idle'),
@@ -284,6 +294,7 @@ class _TestingViewState extends State<TestingView> {
 
   /// Build a statistics row
   Widget _buildStatRow(String label, String value) {
+    final textTheme = Theme.of(context).textTheme;
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8.0),
       child: Row(
@@ -291,12 +302,11 @@ class _TestingViewState extends State<TestingView> {
         children: [
           Text(
             label,
-            style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+            style: textTheme.bodyMedium?.copyWith(
+              fontWeight: FontWeight.w500,
+            ),
           ),
-          Text(
-            value,
-            style: const TextStyle(fontSize: 14),
-          ),
+          Text(value, style: textTheme.bodyMedium),
         ],
       ),
     );

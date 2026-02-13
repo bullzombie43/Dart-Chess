@@ -298,7 +298,6 @@ class _LogReplayViewState extends State<LogReplayView> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color.fromARGB(255, 140, 208, 161),
       body: Row(
         children: [
           // Chess board (left side) - Expanded so it shares space and shrinks with window
@@ -347,15 +346,18 @@ class _LogReplayViewState extends State<LogReplayView> {
   }
 
   Widget _buildFileSelectionCard() {
+    final textTheme = Theme.of(context).textTheme;
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
+            Text(
               'PGN Log Selection',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              style: textTheme.titleLarge?.copyWith(
+                fontWeight: FontWeight.bold,
+              ),
             ),
             const SizedBox(height: 12),
             Row(
@@ -414,13 +416,15 @@ class _LogReplayViewState extends State<LogReplayView> {
               _selectedPgnPath != null
                   ? 'Selected: $_selectedPgnPath'
                   : 'No PGN selected',
-              style: const TextStyle(fontSize: 12),
+              style: textTheme.bodySmall,
             ),
             if (_games.isNotEmpty) ...[
               const SizedBox(height: 12),
-              const Text(
+              Text(
                 'Game in file',
-                style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+                style: textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.w600,
+                ),
               ),
               const SizedBox(height: 4),
               LayoutBuilder(
@@ -461,15 +465,18 @@ class _LogReplayViewState extends State<LogReplayView> {
   }
 
   Widget _buildControlsCard() {
+    final textTheme = Theme.of(context).textTheme;
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
+            Text(
               'Replay Controls',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              style: textTheme.titleLarge?.copyWith(
+                fontWeight: FontWeight.bold,
+              ),
             ),
             const SizedBox(height: 12),
             Row(
@@ -492,7 +499,10 @@ class _LogReplayViewState extends State<LogReplayView> {
               ],
             ),
             const SizedBox(height: 16),
-            const Text('Speed (delay between moves)'),
+            Text(
+              'Speed (delay between moves)',
+              style: textTheme.bodyMedium,
+            ),
             Slider(
               min: 50,
               max: 2000,
@@ -508,6 +518,9 @@ class _LogReplayViewState extends State<LogReplayView> {
   }
 
   Widget _buildInfoCard() {
+    final theme = Theme.of(context);
+    final textTheme = theme.textTheme;
+    final colorScheme = theme.colorScheme;
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16.0),
@@ -515,15 +528,18 @@ class _LogReplayViewState extends State<LogReplayView> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
+            Text(
               'Replay Info',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              style: textTheme.titleLarge?.copyWith(
+                fontWeight: FontWeight.bold,
+              ),
             ),
             const SizedBox(height: 8),
             Text(
               _isReplaying
                   ? 'Replaying game from PGN…'
                   : 'Idle. Select a PGN and press Play to start replay.',
+              style: textTheme.bodyMedium,
             ),
             const SizedBox(height: 12),
             if (_parsedMoves.isNotEmpty)
@@ -531,10 +547,9 @@ class _LogReplayViewState extends State<LogReplayView> {
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
+                  Text(
                     'Moves',
-                    style: TextStyle(
-                      fontSize: 16,
+                    style: textTheme.titleMedium?.copyWith(
                       fontWeight: FontWeight.bold,
                     ),
                   ),
@@ -542,60 +557,65 @@ class _LogReplayViewState extends State<LogReplayView> {
                   ConstrainedBox(
                     constraints: const BoxConstraints(maxHeight: 240),
                     child: ListView.builder(
-                        itemCount: _parsedMoves.length,
-                        itemBuilder: (context, index) {
-                          final move = _parsedMoves[index];
-                          final isCurrent = index == _currentMoveIndex;
-                          final isError =
-                              _firstError != null && index == _firstError!.moveIndex;
-                          Color? color;
-                          if (isError) {
-                            color = Colors.red.shade100;
-                          } else if (isCurrent) {
-                            color = Colors.blue.shade100;
-                          }
-                          return Container(
-                            color: color,
-                            padding: const EdgeInsets.symmetric(
-                              vertical: 4,
-                              horizontal: 8,
-                            ),
-                            child: Row(
-                              children: [
-                                Text('${index + 1}. ',
-                                    style:
-                                        const TextStyle(fontWeight: FontWeight.bold)),
-                                Expanded(
-                                  child: Text(move),
+                      itemCount: _parsedMoves.length,
+                      itemBuilder: (context, index) {
+                        final move = _parsedMoves[index];
+                        final isCurrent = index == _currentMoveIndex;
+                        final isError = _firstError != null &&
+                            index == _firstError!.moveIndex;
+                        Color? color;
+                        if (isError) {
+                          color = colorScheme.errorContainer;
+                        } else if (isCurrent) {
+                          color = colorScheme.primaryContainer;
+                        }
+                        return Container(
+                          color: color,
+                          padding: const EdgeInsets.symmetric(
+                            vertical: 4,
+                            horizontal: 8,
+                          ),
+                          child: Row(
+                            children: [
+                              Text(
+                                '${index + 1}. ',
+                                style: textTheme.bodyMedium?.copyWith(
+                                  fontWeight: FontWeight.bold,
                                 ),
-                              ],
-                            ),
-                          );
-                        },
+                              ),
+                              Expanded(
+                                child: Text(
+                                  move,
+                                  style: textTheme.bodyMedium,
+                                ),
+                              ),
+                            ],
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                  if (_firstError != null) ...[
+                    const SizedBox(height: 8),
+                    const Divider(),
+                    Text(
+                      'First parse error',
+                      style: textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.bold,
                       ),
                     ),
-                  if (_firstError != null) ...[
-                      const SizedBox(height: 8),
-                      const Divider(),
-                      const Text(
-                        'First parse error',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        'Move ${_firstError!.moveIndex + 1}: ${_firstError!.rawMove}',
-                        style: const TextStyle(color: Colors.red),
-                      ),
-                      Text(
-                        _firstError!.message,
-                        style: const TextStyle(fontSize: 12),
-                      ),
-                    ],
+                    const SizedBox(height: 4),
+                    Text(
+                      'Move ${_firstError!.moveIndex + 1}: ${_firstError!.rawMove}',
+                      style: TextStyle(color: colorScheme.error),
+                    ),
+                    Text(
+                      _firstError!.message,
+                      style: textTheme.bodySmall,
+                    ),
                   ],
-                ),
+                ],
+              ),
           ],
         ),
       ),

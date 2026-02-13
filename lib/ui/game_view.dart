@@ -44,7 +44,6 @@ class _GameViewState extends State<GameView> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color.fromARGB(255, 140, 208, 161),
       body: Row(
         children: [
           // Chess board
@@ -63,7 +62,7 @@ class _GameViewState extends State<GameView> {
           // Controls panel
           Expanded(
             child: Padding(
-              padding: EdgeInsetsGeometry.fromLTRB(
+              padding: EdgeInsets.fromLTRB(
                 0,
                 MediaQuery.of(context).size.width * 0.024,
                 MediaQuery.of(context).size.width * 0.024,
@@ -177,32 +176,42 @@ class _GameViewState extends State<GameView> {
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (context) {
+      builder: (dialogContext) {
+        final theme = Theme.of(dialogContext);
+        final colorScheme = theme.colorScheme;
+        final textTheme = theme.textTheme;
         final isDraw = result == 'Draw';
         return AlertDialog(
           title: Row(
             children: [
               Icon(
                 isDraw ? Icons.handshake : Icons.emoji_events,
-                color: isDraw ? Colors.blue : Colors.amber,
+                color: isDraw
+                    ? colorScheme.primary
+                    : colorScheme.tertiary,
                 size: 32,
               ),
               const SizedBox(width: 12),
-              Text(reason ?? 'Game Over'),
+              Text(
+                reason ?? 'Game Over',
+                style: textTheme.titleLarge,
+              ),
             ],
           ),
           content: Text(
             result ?? 'Game Over',
-            style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+            style: textTheme.headlineSmall?.copyWith(
+              fontWeight: FontWeight.bold,
+            ),
           ),
           actions: [
             TextButton(
-              onPressed: () => Navigator.of(context).pop(),
+              onPressed: () => Navigator.of(dialogContext).pop(),
               child: const Text('View Board'),
             ),
             ElevatedButton(
               onPressed: () {
-                Navigator.of(context).pop();
+                Navigator.of(dialogContext).pop();
                 _handleNewGame();
               },
               child: const Text('New Game'),

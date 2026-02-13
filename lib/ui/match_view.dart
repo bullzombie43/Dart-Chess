@@ -63,7 +63,6 @@ class _MatchViewState extends State<MatchView> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color.fromARGB(255, 140, 208, 161),
       body: Row(
         children: [
           // Chess board - Expanded so it shares space and shrinks with window
@@ -132,15 +131,18 @@ class _MatchViewState extends State<MatchView> {
 
   /// Build mode selector widget
   Widget _buildModeSelector() {
+    final textTheme = Theme.of(context).textTheme;
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
+            Text(
               'Match Mode',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              style: textTheme.titleLarge?.copyWith(
+                fontWeight: FontWeight.bold,
+              ),
             ),
             const SizedBox(height: 8),
             SegmentedButton<MatchMode>(
@@ -215,22 +217,31 @@ class _MatchViewState extends State<MatchView> {
 
   /// Build match status display
   Widget _buildMatchStatus() {
+    final textTheme = Theme.of(context).textTheme;
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
+            Text(
               'Match Status',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              style: textTheme.titleLarge?.copyWith(
+                fontWeight: FontWeight.bold,
+              ),
             ),
             const SizedBox(height: 8),
-            Text('Status: ${_isMatchActive ? "Active" : "Idle"}'),
+            Text(
+              'Status: ${_isMatchActive ? "Active" : "Idle"}',
+              style: textTheme.bodyMedium,
+            ),
             if (_currentGameNumber > 0)
-              Text('Game: $_currentGameNumber'),
+              Text('Game: $_currentGameNumber', style: textTheme.bodyMedium),
             if (_lastResult != null)
-              Text('Last Result: $_lastResult'),
+              Text(
+                'Last Result: $_lastResult',
+                style: textTheme.bodyMedium,
+              ),
           ],
         ),
       ),
