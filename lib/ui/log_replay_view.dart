@@ -264,6 +264,12 @@ class _LogReplayViewState extends State<LogReplayView> {
     return _games[_selectedGameIndex];
   }
 
+  /// Truncate a display name with ellipsis only if longer than [maxLen].
+  static String _truncateDisplayName(String s, [int maxLen = 36]) {
+    if (s.length <= maxLen) return s;
+    return '${s.substring(0, maxLen - 3)}...';
+  }
+
   /// Human-friendly description of a game, derived from PGN headers.
   String _describeGame(String gamePgn, int index) {
     String white = 'White';
@@ -295,32 +301,43 @@ class _LogReplayViewState extends State<LogReplayView> {
       backgroundColor: const Color.fromARGB(255, 140, 208, 161),
       body: Row(
         children: [
-          // Chess board (left side)
-          Padding(
-            padding:
-                EdgeInsets.all(MediaQuery.of(context).size.width * 0.024),
-            child: GameBoard(
-              controller: widget.controller,
-              interactive: false,
-            ),
-          ),
-          // Control panel (right side)
+          // Chess board (left side) - Expanded so it shares space and shrinks with window
           Expanded(
             child: Padding(
-              padding: EdgeInsets.fromLTRB(
-                0,
-                MediaQuery.of(context).size.width * 0.024,
-                MediaQuery.of(context).size.width * 0.024,
-                MediaQuery.of(context).size.width * 0.024,
+              padding:
+                  EdgeInsets.all(MediaQuery.of(context).size.width * 0.024),
+              child: GameBoard(
+                controller: widget.controller,
+                interactive: false,
               ),
-              child: Column(
-                children: [
-                  _buildFileSelectionCard(),
-                  const SizedBox(height: 16),
-                  _buildControlsCard(),
-                  const SizedBox(height: 16),
-                  Expanded(child: _buildInfoCard()),
-                ],
+            ),
+          ),
+          // Control panel (right side) - min width so it stays usable
+          Flexible(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(minWidth: 280),
+              child: SingleChildScrollView(
+                child: Padding(
+                  padding: EdgeInsets.fromLTRB(
+                    0,
+                    MediaQuery.of(context).size.width * 0.024,
+                    MediaQuery.of(context).size.width * 0.024,
+                    MediaQuery.of(context).size.width * 0.024,
+                  ),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      _buildFileSelectionCard(),
+                      const SizedBox(height: 16),
+                      _buildControlsCard(),
+                      const SizedBox(height: 16),
+                      ConstrainedBox(
+                        constraints: const BoxConstraints(minHeight: 200),
+                        child: _buildInfoCard(),
+                      ),
+                    ],
+                  ),
+                ),
               ),
             ),
           ),
@@ -344,32 +361,43 @@ class _LogReplayViewState extends State<LogReplayView> {
             Row(
               children: [
                 Expanded(
-                  child: DropdownButtonFormField<String>(
-                    value: _selectedPgnPath != null &&
-                            _logFiles.any((f) => f.path == _selectedPgnPath)
-                        ? _selectedPgnPath
-                        : null,
-                    decoration: const InputDecoration(
-                      labelText: 'Logs directory PGNs',
-                      border: OutlineInputBorder(),
-                    ),
-                    items: _logFiles
-                        .map(
-                          (f) => DropdownMenuItem<String>(
-                            value: f.path,
-                            child: Text(
-                              f.uri.pathSegments.isNotEmpty
-                                  ? f.uri.pathSegments.last
-                                  : f.path,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-                        )
-                        .toList(),
-                    onChanged: (value) {
-                      if (value != null) {
-                        _loadPgnFromPath(value);
-                      }
+                  child: LayoutBuilder(
+                    builder: (context, constraints) {
+                      return DropdownButtonFormField<String>(
+                        key: ValueKey(_selectedPgnPath ?? 'none'),
+                        initialValue: _selectedPgnPath != null &&
+                                _logFiles.any((f) => f.path == _selectedPgnPath)
+                            ? _selectedPgnPath
+                            : null,
+                        decoration: const InputDecoration(
+                          labelText: 'Logs directory PGNs',
+                          border: OutlineInputBorder(),
+                          isDense: true,
+                        ),
+                        isExpanded: true,
+                        menuMaxHeight: 300,
+                        items: _logFiles
+                            .map(
+                              (f) {
+                                final name = f.uri.pathSegments.isNotEmpty
+                                    ? f.uri.pathSegments.last
+                                    : f.path;
+                                return DropdownMenuItem<String>(
+                                  value: f.path,
+                                  child: Text(
+                                    _truncateDisplayName(name),
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                );
+                              },
+                            )
+                            .toList(),
+                        onChanged: (value) {
+                          if (value != null) {
+                            _loadPgnFromPath(value);
+                          }
+                        },
+                      );
                     },
                   ),
                 ),
@@ -384,7 +412,7 @@ class _LogReplayViewState extends State<LogReplayView> {
             const SizedBox(height: 8),
             Text(
               _selectedPgnPath != null
-                  ? 'Selected: ${_selectedPgnPath}'
+                  ? 'Selected: $_selectedPgnPath'
                   : 'No PGN selected',
               style: const TextStyle(fontSize: 12),
             ),
@@ -395,29 +423,34 @@ class _LogReplayViewState extends State<LogReplayView> {
                 style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
               ),
               const SizedBox(height: 4),
-              DropdownButton<int>(
-                value: _selectedGameIndex.clamp(0,
-                    _games.isEmpty ? 0 : _games.length - 1),
-                items: List.generate(_games.length, (index) {
-                  final label = _describeGame(_games[index], index);
-                  return DropdownMenuItem<int>(
-                    value: index,
-                    child: Text(
-                      label,
-                      overflow: TextOverflow.ellipsis,
-                    ),
+              LayoutBuilder(
+                builder: (context, constraints) {
+                  return DropdownButton<int>(
+                    value: _selectedGameIndex.clamp(0,
+                        _games.isEmpty ? 0 : _games.length - 1),
+                    isExpanded: true,
+                    items: List.generate(_games.length, (index) {
+                      final label = _describeGame(_games[index], index);
+                      return DropdownMenuItem<int>(
+                        value: index,
+                        child: Text(
+                          _truncateDisplayName(label, 42),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      );
+                    }),
+                        onChanged: (value) {
+                      if (value == null) return;
+                      final gameText = _games[value];
+                      final moves = _extractMovesFromPgn(gameText);
+                      setState(() {
+                        _selectedGameIndex = value;
+                        _parsedMoves = moves;
+                        _currentMoveIndex = -1;
+                        _firstError = null;
+                      });
+                    },
                   );
-                }),
-                onChanged: (value) {
-                  if (value == null) return;
-                  final gameText = _games[value];
-                  final moves = _extractMovesFromPgn(gameText);
-                  setState(() {
-                    _selectedGameIndex = value;
-                    _parsedMoves = moves;
-                    _currentMoveIndex = -1;
-                    _firstError = null;
-                  });
                 },
               ),
             ],
@@ -479,6 +512,7 @@ class _LogReplayViewState extends State<LogReplayView> {
       child: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
+          mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const Text(
@@ -493,20 +527,21 @@ class _LogReplayViewState extends State<LogReplayView> {
             ),
             const SizedBox(height: 12),
             if (_parsedMoves.isNotEmpty)
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'Moves',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                      ),
+              Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Moves',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
                     ),
-                    const SizedBox(height: 8),
-                    Expanded(
-                      child: ListView.builder(
+                  ),
+                  const SizedBox(height: 8),
+                  ConstrainedBox(
+                    constraints: const BoxConstraints(maxHeight: 240),
+                    child: ListView.builder(
                         itemCount: _parsedMoves.length,
                         itemBuilder: (context, index) {
                           final move = _parsedMoves[index];
@@ -539,7 +574,7 @@ class _LogReplayViewState extends State<LogReplayView> {
                         },
                       ),
                     ),
-                    if (_firstError != null) ...[
+                  if (_firstError != null) ...[
                       const SizedBox(height: 8),
                       const Divider(),
                       const Text(
@@ -561,7 +596,6 @@ class _LogReplayViewState extends State<LogReplayView> {
                     ],
                   ],
                 ),
-              ),
           ],
         ),
       ),

@@ -33,7 +33,7 @@ class MoveParser {
         '/Users/justin/VSCODE PROJECTS/chess_ui/.cursor/debug.log',
       );
       file.writeAsStringSync(
-        jsonEncode(payload) + '\n',
+        '${jsonEncode(payload)}\n',
         mode: FileMode.append,
         flush: true,
       );

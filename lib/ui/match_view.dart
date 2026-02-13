@@ -66,25 +66,30 @@ class _MatchViewState extends State<MatchView> {
       backgroundColor: const Color.fromARGB(255, 140, 208, 161),
       body: Row(
         children: [
-          // Chess board
-          Padding(
-            padding: EdgeInsets.all(MediaQuery.of(context).size.width * 0.024),
-            child: GameBoard(
-              controller: widget.controller,
-              interactive: false, // Non-interactive for engine matches
-            ),
-          ),
-          // Controls panel
+          // Chess board - Expanded so it shares space and shrinks with window
           Expanded(
             child: Padding(
-              padding: EdgeInsetsGeometry.fromLTRB(
-                0,
-                MediaQuery.of(context).size.width * 0.024,
-                MediaQuery.of(context).size.width * 0.024,
-                MediaQuery.of(context).size.width * 0.024,
+              padding: EdgeInsets.all(MediaQuery.of(context).size.width * 0.024),
+              child: GameBoard(
+                controller: widget.controller,
+                interactive: false, // Non-interactive for engine matches
               ),
-              child: Column(
-                children: [
+            ),
+          ),
+          // Controls panel - min width so it stays usable
+          Flexible(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(minWidth: 280),
+              child: SingleChildScrollView(
+                child: Padding(
+                  padding: EdgeInsets.fromLTRB(
+                    0,
+                    MediaQuery.of(context).size.width * 0.024,
+                    MediaQuery.of(context).size.width * 0.024,
+                    MediaQuery.of(context).size.width * 0.024,
+                  ),
+                  child: Column(
+                    children: [
                   // Mode selector
                   _buildModeSelector(),
                   const SizedBox(height: 20),
@@ -93,7 +98,7 @@ class _MatchViewState extends State<MatchView> {
                   const SizedBox(height: 20),
                   // Match status
                   _buildMatchStatus(),
-                  const Spacer(),
+                  const SizedBox(height: 20),
                   // Board controls (timers, etc.)
                   BoardControls(
                     whiteTimer: widget.controller.whiteTimer,
@@ -114,7 +119,9 @@ class _MatchViewState extends State<MatchView> {
                       });
                     },
                   ),
-                ],
+                    ],
+                  ),
+                ),
               ),
             ),
           ),

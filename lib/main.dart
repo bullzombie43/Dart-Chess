@@ -21,6 +21,7 @@ void main() async {
   );
 
   windowManager.waitUntilReadyToShow(windowOptions, () async {
+    await windowManager.setMinimumSize(const Size(900, 650));
     await windowManager.show();
     await windowManager.focus();
     await windowManager.setAspectRatio(10.0 / 8.0);

@@ -92,24 +92,31 @@ class _TestingViewState extends State<TestingView> {
       backgroundColor: const Color.fromARGB(255, 140, 208, 161),
       body: Row(
         children: [
-          // Chess board (left side)
-          Padding(
-            padding: EdgeInsets.all(MediaQuery.of(context).size.width * 0.024),
-            child: GameBoard(
-              controller: widget.controller,
-              interactive: false, // Non-interactive for testing
-            ),
-          ),
-          // Testing control panel (right side)
+          // Chess board (left side) - Expanded so it shares space and shrinks with window
           Expanded(
             child: Padding(
-              padding: EdgeInsetsGeometry.fromLTRB(
-                0,
-                MediaQuery.of(context).size.width * 0.024,
-                MediaQuery.of(context).size.width * 0.024,
-                MediaQuery.of(context).size.width * 0.024,
+              padding: EdgeInsets.all(MediaQuery.of(context).size.width * 0.024),
+              child: GameBoard(
+                controller: widget.controller,
+                interactive: false, // Non-interactive for testing
               ),
-              child: _buildTestingPanel(),
+            ),
+          ),
+          // Testing control panel (right side) - min width so it stays usable
+          Flexible(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(minWidth: 280),
+              child: SingleChildScrollView(
+                child: Padding(
+                  padding: EdgeInsets.fromLTRB(
+                    0,
+                    MediaQuery.of(context).size.width * 0.024,
+                    MediaQuery.of(context).size.width * 0.024,
+                    MediaQuery.of(context).size.width * 0.024,
+                  ),
+                  child: _buildTestingPanel(),
+                ),
+              ),
             ),
           ),
         ],
@@ -135,11 +142,9 @@ class _TestingViewState extends State<TestingView> {
                 const SizedBox(height: 16),
                 Row(
                   children: [
-                    const Expanded(
-                      child: Text('White Engine:', style: TextStyle(fontSize: 14)),
-                    ),
+                    const Text('White Engine:', style: TextStyle(fontSize: 14)),
+                    const SizedBox(width: 8),
                     Expanded(
-                      flex: 2,
                       child: IgnorePointer(
                         ignoring: _isTestActive,
                         child: Opacity(
@@ -162,11 +167,9 @@ class _TestingViewState extends State<TestingView> {
                 const SizedBox(height: 12),
                 Row(
                   children: [
-                    const Expanded(
-                      child: Text('Black Engine:', style: TextStyle(fontSize: 14)),
-                    ),
+                    const Text('Black Engine:', style: TextStyle(fontSize: 14)),
+                    const SizedBox(width: 8),
                     Expanded(
-                      flex: 2,
                       child: IgnorePointer(
                         ignoring: _isTestActive,
                         child: Opacity(
@@ -243,12 +246,14 @@ class _TestingViewState extends State<TestingView> {
           ),
         ),
         const SizedBox(height: 20),
-        // Statistics Section
-        Expanded(
+        // Statistics Section (min height for scrollable panel; no Expanded in ScrollView)
+        ConstrainedBox(
+          constraints: const BoxConstraints(minHeight: 200),
           child: Card(
             child: Padding(
               padding: const EdgeInsets.all(16.0),
               child: Column(
+                mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   const Text(

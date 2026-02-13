@@ -195,7 +195,7 @@ class MoveHandler {
     final legalMoves = controller.legalMoves;
     
     for (final move in legalMoves.values) {
-      final highlightType = HighlightType.selected;
+      const highlightType = HighlightType.selected;
       final hasPiece = PieceType.fromValue(move.capturedPiece) != PieceType.none;
       markers[move.toSquare] = hasPiece 
           ? Marker.piece(highlightType) 

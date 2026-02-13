@@ -371,7 +371,9 @@ Bitboard bishopAttacks(int square, Bitboard occupied) {
       s += dir;
       if (s < 0 || s >= 64) break;
       if ((dir == 9 && fileOf(s) == 0) || (dir == -9 && fileOf(s) == 7) ||
-          (dir == 7 && fileOf(s) == 7) || (dir == -7 && fileOf(s) == 0)) break;
+          (dir == 7 && fileOf(s) == 7) || (dir == -7 && fileOf(s) == 0)) {
+        break;
+      }
 
       attacks |= squareBB(s);
       if ((occupied & squareBB(s)) != 0) break;
@@ -1618,20 +1620,20 @@ void bulkPerft(GameState game){
 }
 
 int bulkCountPerft(GameState game, int depth){
-  List<Move> move_list;
-  int n_moves;
+  List<Move> moveList;
+  int nMoves;
 
   int nodes = 0;
 
-  move_list = game.generateAllMovesForCurrentColor();
-  n_moves = move_list.length;
+  moveList = game.generateAllMovesForCurrentColor();
+  nMoves = moveList.length;
 
   if(depth == 1){
-    return n_moves;
+    return nMoves;
   }
 
-  for(int i = 0; i< n_moves; i++){
-    game.makeMove(move_list[i]);
+  for(int i = 0; i< nMoves; i++){
+    game.makeMove(moveList[i]);
     nodes += bulkCountPerft(game, depth-1);
     game.unmakeMove();
   }

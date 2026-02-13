@@ -57,5 +57,6 @@ app.*.map.json
 #Logs
 /native/logs
 /native/test_versions
+/logs
 
 

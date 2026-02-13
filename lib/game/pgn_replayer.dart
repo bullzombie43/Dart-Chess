@@ -60,8 +60,7 @@ class PgnReplayer {
     Map<String, dynamic> data,
   ) {
     final payload = <String, dynamic>{
-      'id':
-          'log_${DateTime.now().millisecondsSinceEpoch}_${location.hashCode}',
+      'id': 'log_${DateTime.now().millisecondsSinceEpoch}_${location.hashCode}',
       'timestamp': DateTime.now().millisecondsSinceEpoch,
       'location': location,
       'message': message,
@@ -75,7 +74,7 @@ class PgnReplayer {
         '/Users/justin/VSCODE PROJECTS/chess_ui/.cursor/debug.log',
       );
       file.writeAsStringSync(
-        jsonEncode(payload) + '\n',
+        '${jsonEncode(payload)}\n',
         mode: FileMode.append,
         flush: true,
       );

@@ -234,12 +234,11 @@ class BoardControls extends StatelessWidget {
     }
 
     return PopupMenuButton<PlayerType>(
-      child: playerDisplay,
       onSelected: onTypeChanged,
       itemBuilder: (BuildContext context) => [
-        PopupMenuItem<PlayerType>(
+        const PopupMenuItem<PlayerType>(
           value: PlayerType.human,
-          child: const Row(
+          child: Row(
             children: [
               Icon(Icons.person, size: 20),
               SizedBox(width: 8),
@@ -247,9 +246,9 @@ class BoardControls extends StatelessWidget {
             ],
           ),
         ),
-        PopupMenuItem<PlayerType>(
+        const PopupMenuItem<PlayerType>(
           value: PlayerType.engine,
-          child: const Row(
+          child: Row(
             children: [
               Icon(Icons.computer, size: 20),
               SizedBox(width: 8),
@@ -258,6 +257,7 @@ class BoardControls extends StatelessWidget {
           ),
         ),
       ],
+      child: playerDisplay,
     );
   }
 
